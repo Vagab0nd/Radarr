@@ -92,7 +92,7 @@ module.exports = Marionette.Layout.extend({
 
 				this.$el.addClass(this.className);
 
-				this.ui.moviesSearch.keyup(function(e) {
+				this.ui.moviesSearch.on('input', function(e) {
 
 						if (_.contains([
 										9,
@@ -231,7 +231,6 @@ module.exports = Marionette.Layout.extend({
 			this.listsDropdown = new DiscoverableListDropdownView(DiscoverableListCollection.toJSON());
 			this.listsDropdown.render();
 			$("#list-dropdown").html(this.listsDropdown.$el.html());
-			//debugger;
 			//this.myRegion.show(new DiscoverableListDropdownView(DiscoverableListCollection.toJSON()));
 		},
 

@@ -73,6 +73,8 @@ namespace NzbDrone.Core.Indexers
             return releases;
         }
 
+        public Action<IDictionary<string, string>, DateTime?> CookiesUpdater { get; set; }
+
         protected virtual XDocument LoadXmlDocument(IndexerResponse indexerResponse)
         {
             try
@@ -299,7 +301,7 @@ namespace NzbDrone.Core.Indexers
 
         public static long ParseSize(string sizeString, bool defaultToBinaryPrefix)
         {
-            if (sizeString.All(char.IsDigit))
+            if (sizeString.Length > 0 && sizeString.All(char.IsDigit))
             {
                 return long.Parse(sizeString);
             }

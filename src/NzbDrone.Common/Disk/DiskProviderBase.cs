@@ -123,27 +123,6 @@ namespace NzbDrone.Common.Disk
             }
         }
 
-        public bool IsValidGDIPlusImage(string filename)
-        {
-            if (!CanUseGDIPlus())
-            {
-                return true;
-            }
-
-            try
-            {
-                using (var bmp = new Bitmap(filename))
-                {
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Logger.Debug(ex, "Corrupted image found at: {0}.", filename);
-                return false;
-            }
-        }
-
         public bool FolderWritable(string path)
         {
             Ensure.That(path, () => path).IsValidPath();
@@ -294,12 +273,22 @@ namespace NzbDrone.Common.Disk
         {
             Ensure.That(path, () => path).IsValidPath();
 
+            if (dateTime.Before(DateTimeExtensions.Epoch))
+            {
+                dateTime = DateTimeExtensions.Epoch;
+            }
+
             Directory.SetLastWriteTimeUtc(path, dateTime);
         }
 
         public void FileSetLastWriteTime(string path, DateTime dateTime)
         {
             Ensure.That(path, () => path).IsValidPath();
+            
+            if (dateTime.Before(DateTimeExtensions.Epoch))
+            {
+                dateTime = DateTimeExtensions.Epoch;
+            }
 
             File.SetLastWriteTime(path, dateTime);
         }

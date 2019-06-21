@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using FluentValidation.Results;
 using NzbDrone.Common.Extensions;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Notifications.MediaBrowser
 {
@@ -37,7 +37,7 @@ namespace NzbDrone.Core.Notifications.MediaBrowser
 
             if (Settings.UpdateLibrary)
             {
-                _mediaBrowserService.UpdateMovies(Settings, message.Movie);
+                _mediaBrowserService.UpdateMovies(Settings, message.Movie, "Created");
             }
         }
 
@@ -45,7 +45,7 @@ namespace NzbDrone.Core.Notifications.MediaBrowser
         {
             if (Settings.UpdateLibrary)
             {
-                _mediaBrowserService.UpdateMovies(Settings, movie);
+                _mediaBrowserService.UpdateMovies(Settings, movie, "Modified");
             }
         }
 

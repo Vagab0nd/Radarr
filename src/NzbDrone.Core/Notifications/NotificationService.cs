@@ -8,15 +8,12 @@ using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Qualities;
 using NzbDrone.Core.ThingiProvider;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Notifications
 {
     public class NotificationService
-        : IHandle<EpisodeGrabbedEvent>,
-          IHandle<EpisodeDownloadedEvent>,
-          IHandle<SeriesRenamedEvent>,
-          IHandle<MovieRenamedEvent>, 
+        : IHandle<MovieRenamedEvent>, 
           IHandle<MovieGrabbedEvent>,
           IHandle<MovieDownloadedEvent>
 
@@ -33,7 +30,7 @@ namespace NzbDrone.Core.Notifications
         private string GetMessage(Movie movie, QualityModel quality)
         {
             var qualityString = quality.Quality.ToString();
-            var ImdbUrl = "http://www.imdb.com/title/" + movie.ImdbId + "/";
+            var ImdbUrl = "https://www.imdb.com/title/" + movie.ImdbId + "/";
 
             if (quality.Revision.Version > 1)
             {
@@ -68,11 +65,6 @@ namespace NzbDrone.Core.Notifications
             return false;
         }
 
-        public void Handle(EpisodeGrabbedEvent message)
-        {
-            throw new NotImplementedException("Remove Series/Season/Episode");
-        }
-
         public void Handle(MovieGrabbedEvent message)
         {
             var grabMessage = new GrabMessage
@@ -80,7 +72,9 @@ namespace NzbDrone.Core.Notifications
                 Message = GetMessage(message.Movie.Movie, message.Movie.ParsedMovieInfo.Quality),
                 Quality = message.Movie.ParsedMovieInfo.Quality,
                 Movie = message.Movie.Movie,
-                RemoteMovie = message.Movie
+                RemoteMovie = message.Movie,
+                DownloadClient = message.DownloadClient,
+                DownloadId = message.DownloadId
             };
 
             foreach (var notification in _notificationFactory.OnGrabEnabled())
@@ -96,11 +90,6 @@ namespace NzbDrone.Core.Notifications
                     _logger.Error(ex, "Unable to send OnGrab notification to: " + notification.Definition.Name);
                 }
             }
-        }
-
-        public void Handle(EpisodeDownloadedEvent message)
-        {
-            throw new NotImplementedException("Remove Series/Season/Episode");
         }
 
         public void Handle(MovieDownloadedEvent message)
@@ -131,11 +120,6 @@ namespace NzbDrone.Core.Notifications
                     _logger.Warn(ex, "Unable to send OnDownload notification to: " + notification.Definition.Name);
                 }
             }
-        }
-
-        public void Handle(SeriesRenamedEvent message)
-        {
-            throw new NotImplementedException("Remove Series/Season/Episode");
         }
 
         public void Handle(MovieRenamedEvent message)

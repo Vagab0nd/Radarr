@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using FizzWare.NBuilder;
 using Marr.Data;
@@ -14,7 +14,7 @@ using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Profiles;
 using NzbDrone.Core.Qualities;
 using NzbDrone.Core.Test.Framework;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Test.Download.Pending.PendingReleaseServiceTests
 {
@@ -34,7 +34,7 @@ namespace NzbDrone.Core.Test.Download.Pending.PendingReleaseServiceTests
             _movie = Builder<Movie>.CreateNew()
                                      .Build();
 
-          
+
             _profile = new Profile
                        {
                            Name = "Test",
@@ -59,7 +59,7 @@ namespace NzbDrone.Core.Test.Download.Pending.PendingReleaseServiceTests
             _remoteMovie.Movie = _movie;
             _remoteMovie.ParsedMovieInfo = _parsedMovieInfo;
             _remoteMovie.Release = _release;
-            
+
             _temporarilyRejected = new DownloadDecision(_remoteMovie, new Rejection("Temp Rejected", RejectionType.Temporary));
 
             Mocker.GetMock<IPendingReleaseRepository>()
@@ -75,7 +75,7 @@ namespace NzbDrone.Core.Test.Download.Pending.PendingReleaseServiceTests
                   .Returns(_movie);
 
             Mocker.GetMock<IPrioritizeDownloadDecision>()
-                  .Setup(s => s.PrioritizeDecisions(It.IsAny<List<DownloadDecision>>()))
+                  .Setup(s => s.PrioritizeDecisionsForMovies(It.IsAny<List<DownloadDecision>>()))
                   .Returns((List<DownloadDecision> d) => d);
         }
 

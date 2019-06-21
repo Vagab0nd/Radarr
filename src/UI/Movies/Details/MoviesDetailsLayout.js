@@ -45,7 +45,6 @@ module.exports = Marionette.Layout.extend({
 		},
 
 		events : {
-				'click .x-episode-file-editor' : '_showFiles',
 				'click .x-monitored'           : '_toggleMonitored',
 				'click .x-edit'                : '_editMovie',
 				'click .x-refresh'             : '_refreshMovies',
@@ -187,15 +186,15 @@ module.exports = Marionette.Layout.extend({
 				var monitored = this.model.get('monitored');
 
 				this.ui.monitored.removeAttr('data-idle-icon');
-				this.ui.monitored.removeClass('fa-spin icon-sonarr-spinner');
+				this.ui.monitored.removeClass('fa-spin icon-radarr-spinner');
 
 				if (monitored) {
-						this.ui.monitored.addClass('icon-sonarr-monitored');
-						this.ui.monitored.removeClass('icon-sonarr-unmonitored');
+						this.ui.monitored.addClass('icon-radarr-monitored');
+						this.ui.monitored.removeClass('icon-radarr-unmonitored');
 						this.$el.removeClass('movie-not-monitored');
 				} else {
-						this.ui.monitored.addClass('icon-sonarr-unmonitored');
-						this.ui.monitored.removeClass('icon-sonarr-monitored');
+						this.ui.monitored.addClass('icon-radarr-unmonitored');
+						this.ui.monitored.removeClass('icon-radarr-monitored');
 						this.$el.addClass('movie-not-monitored');
 				}
 		},
@@ -251,15 +250,6 @@ module.exports = Marionette.Layout.extend({
 				this._showInfo();
 		},
 
-		// _openEpisodeFileEditor : function() {
-		// 		var view = new EpisodeFileEditorLayout({
-		// 				movies            : this.model,
-		// 				episodeCollection : this.episodeCollection
-		// 		});
-
-		// 		vent.trigger(vent.Commands.OpenModalCommand, view);
-		// },
-
 		_updateImages : function () {
 				var poster = this._getImage('poster');
 
@@ -272,7 +262,7 @@ module.exports = Marionette.Layout.extend({
 
 		_showBackdrop : function () {
 				$('body').addClass('backdrop');
-				var fanArt = this._getImage('banner');
+				var fanArt = this._getImage('fanart');
 
 				if (fanArt) {
 						this._backstrech = $.backstretch(fanArt);

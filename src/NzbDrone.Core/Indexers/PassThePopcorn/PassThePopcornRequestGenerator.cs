@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Common.Cache;
 using NLog;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Serializer;
 
 namespace NzbDrone.Core.Indexers.PassThePopcorn
@@ -13,7 +14,8 @@ namespace NzbDrone.Core.Indexers.PassThePopcorn
 
         public PassThePopcornSettings Settings { get; set; }
 
-        public ICached<Dictionary<string, string>> AuthCookieCache { get; set; }
+        public IDictionary<string, string> Cookies { get; set; }
+
         public IHttpClient HttpClient { get; set; }
         public Logger Logger { get; set; }
 
@@ -33,26 +35,38 @@ namespace NzbDrone.Core.Indexers.PassThePopcorn
             return pageableRequests;
         }
 
+        public Func<IDictionary<string, string>> GetCookies { get; set; }
+        public Action<IDictionary<string, string>, DateTime?> CookiesUpdater { get; set; }
+
         private IEnumerable<IndexerRequest> GetRequest(string searchParameters)
         {
-            Authenticate();
-
-            var filter = "";
-            if (searchParameters == null)
-            {
-
-
-            }
-
             var request =
                 new IndexerRequest(
-                    $"{Settings.BaseUrl.Trim().TrimEnd('/')}/torrents.php?action=advanced&json=noredirect&searchstr={searchParameters}{filter}",
+                    $"{Settings.BaseUrl.Trim().TrimEnd('/')}/torrents.php?action=advanced&json=noredirect&searchstr={searchParameters}",
                     HttpAccept.Json);
-
-            var cookies = AuthCookieCache.Find(Settings.BaseUrl.Trim().TrimEnd('/'));
-            foreach (var cookie in cookies)
+            
+            if (Settings.APIKey.IsNullOrWhiteSpace())
             {
-                request.HttpRequest.Cookies[cookie.Key] = cookie.Value;
+                Cookies = GetCookies();
+            
+                Authenticate();
+                
+                Logger.Warn("You are using the old method of logging into PassThePopcorn. Please switch to the new method using APIUser & APIKey.");
+            }
+            else
+            {
+                request.HttpRequest.Headers["ApiUser"] = Settings.APIUser;
+                request.HttpRequest.Headers["ApiKey"] = Settings.APIKey;
+            }
+
+            if (Settings.APIKey.IsNullOrWhiteSpace())
+            {
+                foreach (var cookie in Cookies)
+                {
+                    request.HttpRequest.Cookies[cookie.Key] = cookie.Value;
+                }
+                
+                CookiesUpdater(Cookies, DateTime.Now + TimeSpan.FromDays(30));
             }
 
             yield return request;
@@ -60,35 +74,36 @@ namespace NzbDrone.Core.Indexers.PassThePopcorn
 
         private void Authenticate()
         {
-            var requestBuilder = new HttpRequestBuilder($"{Settings.BaseUrl.Trim().TrimEnd('/')}")
+            if (Cookies == null)
             {
-                LogResponseContent = true
-            };
+                var requestBuilder = new HttpRequestBuilder($"{Settings.BaseUrl.Trim().TrimEnd('/')}")
+                {
+                    LogResponseContent = true
+                };
 
-            requestBuilder.Method = HttpMethod.POST;
-            requestBuilder.Resource("ajax.php?action=login");
-            requestBuilder.PostProcess += r => r.RequestTimeout = TimeSpan.FromSeconds(15);
-
-            var authKey = Settings.BaseUrl.Trim().TrimEnd('/');
-            var cookies = AuthCookieCache.Find(authKey);
-
-            if (cookies == null)
-            {
-                AuthCookieCache.Remove(authKey);
+                requestBuilder.Method = HttpMethod.POST;
+                requestBuilder.Resource("ajax.php?action=login");
+                requestBuilder.PostProcess += r => r.RequestTimeout = TimeSpan.FromSeconds(15);
+                
                 var authLoginRequest = requestBuilder
                     .AddFormParameter("username", Settings.Username)
                     .AddFormParameter("password", Settings.Password)
                     .AddFormParameter("passkey", Settings.Passkey)
                     .AddFormParameter("keeplogged", "1")
-                    .AddFormParameter("login", "Log In!")
                     .SetHeader("Content-Type", "multipart/form-data")
                     .Accept(HttpAccept.Json)
                     .Build();
 
+                authLoginRequest.AllowAutoRedirect = true;
+                // We want clean cookies for the auth request.
+                authLoginRequest.StoreRequestCookie = false;
+                authLoginRequest.StoreResponseCookie = false;
+                authLoginRequest.Cookies.Clear();
+                authLoginRequest.IgnorePersistentCookies = true;
                 var response = HttpClient.Execute(authLoginRequest);
                 var result = Json.Deserialize<PassThePopcornAuthResponse>(response.Content);
 
-                if (result.Result != "Ok" || string.IsNullOrWhiteSpace(result.Result))
+                if (result?.Result != "Ok" || string.IsNullOrWhiteSpace(result.Result))
                 {
                     Logger.Debug("PassThePopcorn authentication failed.");
                     throw new Exception("Failed to authenticate with PassThePopcorn.");
@@ -96,41 +111,9 @@ namespace NzbDrone.Core.Indexers.PassThePopcorn
 
                 Logger.Debug("PassThePopcorn authentication succeeded.");
 
-                cookies = response.GetCookies();
-                AuthCookieCache.Set(authKey, cookies, new TimeSpan(7, 0, 0, 0, 0)); // re-auth every 7 days
-                requestBuilder.SetCookies(cookies);
-            }
-            else
-            {
-                requestBuilder.SetCookies(cookies);
+                Cookies = response.GetCookies();
+                requestBuilder.SetCookies(Cookies);
             }
         }
-
-        public virtual IndexerPageableRequestChain GetSearchRequests(SingleEpisodeSearchCriteria searchCriteria)
-        {
-            return new IndexerPageableRequestChain();
-        }
-
-        public virtual IndexerPageableRequestChain GetSearchRequests(AnimeEpisodeSearchCriteria searchCriteria)
-        {
-            return new IndexerPageableRequestChain();
-        }
-
-        public virtual IndexerPageableRequestChain GetSearchRequests(SpecialEpisodeSearchCriteria searchCriteria)
-        {
-            return new IndexerPageableRequestChain();
-        }
-
-        public virtual IndexerPageableRequestChain GetSearchRequests(DailyEpisodeSearchCriteria searchCriteria)
-        {
-            return new IndexerPageableRequestChain();
-        }
-
-        public virtual IndexerPageableRequestChain GetSearchRequests(SeasonSearchCriteria searchCriteria)
-        {
-            return new IndexerPageableRequestChain();
-        }
-
-        
     }
 }

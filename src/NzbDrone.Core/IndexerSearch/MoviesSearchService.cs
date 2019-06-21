@@ -5,7 +5,7 @@ using NLog;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Commands;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Queue;
 using NzbDrone.Core.DecisionEngine;
@@ -46,6 +46,7 @@ namespace NzbDrone.Core.IndexerSearch
                 if (!movies.Monitored)
                 {
                     _logger.Debug("Movie {0} is not monitored, skipping search", movies.Title);
+                    continue;
                 }
 
                 var decisions = _nzbSearchService.MovieSearch(movieId, false);//_nzbSearchService.SeasonSearch(message.MovieId, season.SeasonNumber, false, message.Trigger == CommandTrigger.Manual);

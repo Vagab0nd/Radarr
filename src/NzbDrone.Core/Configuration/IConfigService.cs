@@ -16,6 +16,7 @@ namespace NzbDrone.Core.Configuration
         string DownloadClientWorkingFolders { get; set; }
         int DownloadedMoviesScanInterval { get; set; }
         int DownloadClientHistoryLimit { get; set; }
+        int CheckForFinishedDownloadInterval { get; set; }
 
         //Completed/Failed Download Handling (Download client)
         bool EnableCompletedDownloadHandling { get; set; }
@@ -48,6 +49,7 @@ namespace NzbDrone.Core.Configuration
         //Indexers
         int Retention { get; set; }
         int RssSyncInterval { get; set; }
+        int MaximumSize { get; set; }
         int MinimumAge { get; set; }
 
         bool PreferIndexerFlags { get; set; }

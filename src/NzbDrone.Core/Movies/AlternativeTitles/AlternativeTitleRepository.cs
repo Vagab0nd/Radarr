@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Datastore;
@@ -10,6 +10,7 @@ namespace NzbDrone.Core.Movies.AlternativeTitles
     {
         AlternativeTitle FindBySourceId(int sourceId);
         List<AlternativeTitle> FindBySourceIds(List<int> sourceIds);
+        List<AlternativeTitle> FindByMovieId(int movieId);
     }
 
     public class AlternativeTitleRepository : BasicRepository<AlternativeTitle>, IAlternativeTitleRepository
@@ -24,12 +25,17 @@ namespace NzbDrone.Core.Movies.AlternativeTitles
 
         public AlternativeTitle FindBySourceId(int sourceId)
         {
-            return Query.Where(t => t.SourceId == sourceId).FirstOrDefault();
+            return Query(q => q.Where(t => t.SourceId == sourceId).FirstOrDefault());
         }
 
         public List<AlternativeTitle> FindBySourceIds(List<int> sourceIds)
         {
-            return Query.Where(t => t.SourceId.In(sourceIds)).ToList();
+            return Query(q => q.Where(t => t.SourceId.In(sourceIds)).ToList());
+        }
+
+        public List<AlternativeTitle> FindByMovieId(int movieId)
+        {
+            return Query(q => q.Where(t => t.MovieId == movieId).ToList());
         }
     }
 }

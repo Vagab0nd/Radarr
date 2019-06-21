@@ -5,7 +5,7 @@ using FluentValidation.Results;
 using NzbDrone.Core.Extras.Metadata.Files;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.ThingiProvider;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Extras.Metadata
 {
@@ -41,7 +41,7 @@ namespace NzbDrone.Core.Extras.Metadata
         public abstract MetadataFile FindMetadataFile(Movie movie, string path);
         
         public abstract MetadataFileResult MovieMetadata(Movie movie, MovieFile movieFile);
-        public abstract List<ImageFileResult> MovieImages(Movie movie, MovieFile movieFile);
+        public abstract List<ImageFileResult> MovieImages(Movie movie);
 
         public virtual object RequestAction(string action, IDictionary<string, string> query) { return null; }
 

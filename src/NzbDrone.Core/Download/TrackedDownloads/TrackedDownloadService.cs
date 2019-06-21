@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Cache;
@@ -43,6 +44,20 @@ namespace NzbDrone.Core.Download.TrackedDownloads
 
         public TrackedDownload TrackDownload(DownloadClientDefinition downloadClient, DownloadClientItem downloadItem)
         {
+            if (downloadItem.DownloadId.IsNullOrWhiteSpace())
+            {
+                _logger.Warn("The following download client item ({0}) has no download hash (id), so it cannot be tracked: {1}", 
+                    downloadClient.Name, downloadItem.Title);
+                return null;
+            }
+
+            if (downloadItem.Title.IsNullOrWhiteSpace())
+            {
+                _logger.Warn("The following download client item ({0}) has no title so it cannot be tracked: {1}",
+                    downloadClient.Name, downloadItem.Title);
+                return null;
+            }
+            
             var existingItem = Find(downloadItem.DownloadId);
 
             if (existingItem != null && existingItem.State != TrackedDownloadStage.Downloading)
@@ -60,24 +75,27 @@ namespace NzbDrone.Core.Download.TrackedDownloads
 
             try
             {
-                var parsedMovieInfo = Parser.Parser.ParseMovieTitle(trackedDownload.DownloadItem.Title, _config.ParsingLeniency > 0);
+
                 var historyItems = _historyService.FindByDownloadId(downloadItem.DownloadId);
+                var grabbedHistoryItem = historyItems.OrderByDescending(h => h.Date).FirstOrDefault(h => h.EventType == HistoryEventType.Grabbed);
+                var firstHistoryItem = historyItems.OrderByDescending(h => h.Date).FirstOrDefault();
+                //TODO: Create release info from history and use that here, so we don't loose indexer flags!
+                var parsedMovieInfo = _parsingService.ParseMovieInfo(trackedDownload.DownloadItem.Title, new List<object>{grabbedHistoryItem});
 
                 if (parsedMovieInfo != null)
                 {
                     trackedDownload.RemoteMovie = _parsingService.Map(parsedMovieInfo, "", null).RemoteMovie;
                 }
 
-                if (historyItems.Any())
+                if (firstHistoryItem != null)
                 {
-                    var firstHistoryItem = historyItems.OrderByDescending(h => h.Date).First();
                     trackedDownload.State = GetStateFromHistory(firstHistoryItem.EventType);
 
                     if (parsedMovieInfo == null ||
                         trackedDownload.RemoteMovie == null ||
                         trackedDownload.RemoteMovie.Movie == null)
                     {
-                        parsedMovieInfo = Parser.Parser.ParseMovieTitle(firstHistoryItem.SourceTitle, _config.ParsingLeniency > 0);
+                        parsedMovieInfo = _parsingService.ParseMovieInfo(firstHistoryItem.SourceTitle, new List<object>{grabbedHistoryItem});
 
                         if (parsedMovieInfo != null)
                         {
@@ -93,7 +111,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
             }
             catch (Exception e)
             {
-                _logger.Debug(e, "Failed to find episode for " + downloadItem.Title);
+                _logger.Debug(e, "Failed to find movie for " + downloadItem.Title);
                 return null;
             }
 

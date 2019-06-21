@@ -12,19 +12,21 @@ using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Profiles;
 using NzbDrone.Core.Qualities;
-using NzbDrone.Core.Tv.Events;
+using NzbDrone.Core.Movies.Events;
 
 namespace NzbDrone.Core.History
 {
     public interface IHistoryService
     {
-        QualityModel GetBestQualityInHistory(Profile profile, int episodeId);
+        QualityModel GetBestQualityInHistory(Profile profile, int movieId);
         PagingSpec<History> Paged(PagingSpec<History> pagingSpec);
         History MostRecentForMovie(int movieId);
         History MostRecentForDownloadId(string downloadId);
         History Get(int historyId);
         List<History> Find(string downloadId, HistoryEventType eventType);
         List<History> FindByDownloadId(string downloadId);
+        List<History> FindByMovieId(int movieId);
+        void UpdateMany(List<History> toUpdate);
     }
 
     public class HistoryService : IHistoryService,
@@ -73,12 +75,22 @@ namespace NzbDrone.Core.History
             return _historyRepository.FindByDownloadId(downloadId);
         }
 
-        public QualityModel GetBestQualityInHistory(Profile profile, int episodeId)
+        public List<History> FindByMovieId(int movieId)
+        {
+            return _historyRepository.FindByMovieId(movieId);
+        }
+
+        public QualityModel GetBestQualityInHistory(Profile profile, int movieId)
         {
             var comparer = new QualityModelComparer(profile);
-            return _historyRepository.GetBestQualityInHistory(episodeId)
+            return _historyRepository.GetBestQualityInHistory(movieId)
                 .OrderByDescending(q => q, comparer)
                 .FirstOrDefault();
+        }
+
+        public void UpdateMany(List<History> toUpdate)
+        {
+            _historyRepository.UpdateMany(toUpdate);
         }
 
         public void Handle(MovieGrabbedEvent message)
@@ -89,8 +101,6 @@ namespace NzbDrone.Core.History
                 Date = DateTime.UtcNow,
                 Quality = message.Movie.ParsedMovieInfo.Quality,
                 SourceTitle = message.Movie.Release.Title,
-                SeriesId = 0,
-                EpisodeId = 0,
                 DownloadId = message.DownloadId,
                 MovieId = message.Movie.Movie.Id
             };
@@ -109,6 +119,8 @@ namespace NzbDrone.Core.History
             history.Data.Add("TvdbId", message.Movie.Release.TvdbId.ToString());
             history.Data.Add("TvRageId", message.Movie.Release.TvRageId.ToString());
             history.Data.Add("Protocol", ((int)message.Movie.Release.DownloadProtocol).ToString());
+            history.Data.Add("IndexerFlags", message.Movie.Release.IndexerFlags.ToString());
+            history.Data.Add("IndexerId", message.Movie.Release.IndexerId.ToString());
 
             if (!message.Movie.ParsedMovieInfo.ReleaseHash.IsNullOrWhiteSpace())
             {
@@ -145,9 +157,7 @@ namespace NzbDrone.Core.History
                 EventType = HistoryEventType.DownloadFolderImported,
                 Date = DateTime.UtcNow,
                 Quality = message.MovieInfo.Quality,
-                SourceTitle = movie.Title,
-                SeriesId = 0,
-                EpisodeId = 0,
+                SourceTitle = message.ImportedMovie.SceneName ?? Path.GetFileNameWithoutExtension(message.MovieInfo.Path),
                 DownloadId = downloadId,
                 MovieId = movie.Id,
             };
@@ -175,8 +185,6 @@ namespace NzbDrone.Core.History
                 Date = DateTime.UtcNow,
                 Quality = message.MovieFile.Quality,
                 SourceTitle = message.MovieFile.Path,
-                SeriesId = 0,
-                EpisodeId = 0,
                 MovieId = message.MovieFile.MovieId
             };
 
@@ -240,8 +248,6 @@ namespace NzbDrone.Core.History
                 Date = DateTime.UtcNow,
                 Quality = message.Quality,
                 SourceTitle = message.SourceTitle,
-                SeriesId = 0,
-                EpisodeId = 0,
                 MovieId = message.MovieId,
                 DownloadId = message.DownloadId
             };

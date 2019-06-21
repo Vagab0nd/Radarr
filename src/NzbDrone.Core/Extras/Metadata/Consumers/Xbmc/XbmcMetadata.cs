@@ -7,11 +7,13 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Extras.Metadata.Files;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MediaFiles;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.MediaFiles.MediaInfo;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
 {
@@ -19,16 +21,23 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
     {
         private readonly IMapCoversToLocal _mediaCoverService;
         private readonly Logger _logger;
+        private readonly IDetectXbmcNfo _detectNfo;
+        private readonly IDiskProvider _diskProvider;
 
-        public XbmcMetadata(IMapCoversToLocal mediaCoverService,
+        public XbmcMetadata(IDetectXbmcNfo detectNfo,
+                            IDiskProvider diskProvider,
+                            IMapCoversToLocal mediaCoverService,
                             Logger logger)
         {
-            _mediaCoverService = mediaCoverService;
             _logger = logger;
+            _mediaCoverService = mediaCoverService;
+            _diskProvider = diskProvider;
+            _detectNfo = detectNfo;
+
         }
 
-        private static readonly Regex MovieImagesRegex = new Regex(@"^(?<type>poster|banner|fanart|clearart|disc|landscape|logo)\.(?:png|jpg)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex MovieFileImageRegex = new Regex(@"(?<type>-thumb|-poster|-banner|-fanart)\.(?:png|jpg)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex MovieImagesRegex = new Regex(@"^(?<type>poster|banner|fanart|clearart|discart|landscape|logo|backdrop|clearlogo)\.(?:png|jpg)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex MovieFileImageRegex = new Regex(@"(?<type>-thumb|-poster|-banner|-fanart|-clearart|-discart|-landscape|-logo|-backdrop|-clearlogo)\.(?:png|jpg)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public override string Name => "Kodi (XBMC) / Emby";
 
@@ -40,11 +49,6 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
             if (metadataFile.Type == MetadataType.MovieMetadata)
             {
                 return GetMovieMetadataFilename(movieFilePath);
-            }
-
-            if (metadataFile.Type == MetadataType.MovieImage)
-            {
-                return GetMovieImageFilename(movieFilePath, metadataPath);
             }
 
             _logger.Debug("Unknown movie file metadata: {0}", metadataFile.RelativePath);
@@ -76,7 +80,8 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
                 return metadata;
             }
 
-            if (filename.Equals("movie.nfo", StringComparison.OrdinalIgnoreCase))
+            if (filename.Equals("movie.nfo", StringComparison.OrdinalIgnoreCase) &&
+                _detectNfo.IsXbmcNfoFile(path))
             {
                 metadata.Type = MetadataType.MovieMetadata;
                 return metadata;
@@ -85,7 +90,8 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
             var parseResult = Parser.Parser.ParseMovieTitle(filename, false);
 
             if (parseResult != null &&
-                Path.GetExtension(filename).Equals(".nfo", StringComparison.OrdinalIgnoreCase))
+                Path.GetExtension(filename).Equals(".nfo", StringComparison.OrdinalIgnoreCase) &&
+                _detectNfo.IsXbmcNfoFile(path))
             {
                 metadata.Type = MetadataType.MovieMetadata;
                 return metadata;
@@ -103,6 +109,8 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
 
             _logger.Debug("Generating Movie Metadata for: {0}", Path.Combine(movie.Path, movieFile.RelativePath));
 
+            var watched = GetExistingWatchedStatus(movie, movieFile.RelativePath);
+
             var xmlResult = string.Empty;
 
             var sb = new StringBuilder();
@@ -113,7 +121,9 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
             using (var xw = XmlWriter.Create(sb, xws))
             {
                 var doc = new XDocument();
-                var image = movie.Images.SingleOrDefault(i => i.CoverType == MediaCoverTypes.Screenshot);
+                var thumbnail = movie.Images.SingleOrDefault(i => i.CoverType == MediaCoverTypes.Screenshot);
+                var posters = movie.Images.Where(i => i.CoverType == MediaCoverTypes.Poster);
+                var fanarts = movie.Images.Where(i => i.CoverType == MediaCoverTypes.Fanart);
 
                 var details = new XElement("movie");
 
@@ -126,11 +136,24 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
 
                 details.Add(new XElement("plot", movie.Overview));
                 details.Add(new XElement("id", movie.ImdbId));
+
+                if (movie.ImdbId.IsNotNullOrWhiteSpace())
+                {
+                    var imdbId = new XElement("uniqueid", movie.ImdbId);
+                    imdbId.SetAttributeValue("type", "imdb");
+                    imdbId.SetAttributeValue("default", true);
+                    details.Add(imdbId);
+                }
+
+                var uniqueId = new XElement("uniqueid", movie.TmdbId);
+                uniqueId.SetAttributeValue("type", "tmdb");
+                details.Add(uniqueId);
+
                 details.Add(new XElement("year", movie.Year));
 
                 if (movie.InCinemas.HasValue)
                 {
-                    details.Add(new XElement("premiered", movie.InCinemas.Value.ToString()));
+                    details.Add(new XElement("premiered", movie.InCinemas.Value.ToString("yyyy-MM-dd")));
                 }
 
                 foreach (var genre in movie.Genres)
@@ -140,27 +163,50 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
 
                 details.Add(new XElement("studio", movie.Studio));
 
-                if (image == null)
+                if (thumbnail == null)
                 {
                     details.Add(new XElement("thumb"));
                 }
 
                 else
                 {
-                    details.Add(new XElement("thumb", image.Url));
+                    details.Add(new XElement("thumb", thumbnail.Url));
                 }
 
-                details.Add(new XElement("watched", "false"));
+                foreach (var poster in posters)
+                {                    
+                    if (poster != null && poster.Url != null)
+                    {
+                        details.Add(new XElement("thumb", new XAttribute("aspect", "poster"), poster.Url));
+                    }
+                }
+
+                if (fanarts.Count() > 0)
+                {
+                    var fanartElement = new XElement("fanart");
+                    foreach (var fanart in fanarts)
+                    {
+                        if (fanart != null && fanart.Url != null)
+                        {
+                            fanartElement.Add(new XElement("thumb", fanart.Url));
+                        }
+                    }
+                    details.Add(fanartElement);
+                }
+
+                details.Add(new XElement("watched", watched));
 
                 if (movieFile.MediaInfo != null)
                 {
+                    var sceneName = movieFile.GetSceneOrFileName();
+
                     var fileInfo = new XElement("fileinfo");
                     var streamDetails = new XElement("streamdetails");
 
                     var video = new XElement("video");
                     video.Add(new XElement("aspect", (float)movieFile.MediaInfo.Width / (float)movieFile.MediaInfo.Height));
                     video.Add(new XElement("bitrate", movieFile.MediaInfo.VideoBitrate));
-                    video.Add(new XElement("codec", movieFile.MediaInfo.VideoCodec));
+                    video.Add(new XElement("codec", MediaInfoFormatter.FormatVideoCodec(movieFile.MediaInfo, sceneName)));
                     video.Add(new XElement("framerate", movieFile.MediaInfo.VideoFps));
                     video.Add(new XElement("height", movieFile.MediaInfo.Height));
                     video.Add(new XElement("scantype", movieFile.MediaInfo.ScanType));
@@ -177,7 +223,7 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
                     var audio = new XElement("audio");
                     audio.Add(new XElement("bitrate", movieFile.MediaInfo.AudioBitrate));
                     audio.Add(new XElement("channels", movieFile.MediaInfo.AudioChannels));
-                    audio.Add(new XElement("codec", GetAudioCodec(movieFile.MediaInfo.AudioFormat)));
+                    audio.Add(new XElement("codec", MediaInfoFormatter.FormatAudioCodec(movieFile.MediaInfo, sceneName)));
                     audio.Add(new XElement("language", movieFile.MediaInfo.AudioLanguages));
                     streamDetails.Add(audio);
 
@@ -210,7 +256,7 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
             return new MetadataFileResult(metadataFileName, xmlResult.Trim(Environment.NewLine.ToCharArray()));
         }
 
-        public override List<ImageFileResult> MovieImages(Movie movie, MovieFile movieFile)
+        public override List<ImageFileResult> MovieImages(Movie movie)
         {
             if (!Settings.MovieImages)
             {
@@ -225,7 +271,7 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
             foreach (var image in movie.Images)
             {
                 var source = _mediaCoverService.GetCoverPath(movie.Id, image.CoverType);
-                var destination = Path.ChangeExtension(movie.MovieFile.RelativePath,"").TrimEnd(".") + "-" + image.CoverType.ToString().ToLowerInvariant() + Path.GetExtension(source);
+                var destination = image.CoverType.ToString().ToLowerInvariant() + Path.GetExtension(source);
 
                 yield return new ImageFileResult(destination, source);
             }
@@ -236,28 +282,18 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Xbmc
             return Path.ChangeExtension(movieFilePath, "nfo");
         }
 
-        private string GetMovieImageFilename(string movieFilePath, string existingImageName)
+        private bool GetExistingWatchedStatus(Movie movie, string movieFilePath)
         {
-            var fileExtention = Path.GetExtension(existingImageName);
-            var match = MovieFileImageRegex.Matches(existingImageName);
+            var fullPath = Path.Combine(movie.Path, GetMovieMetadataFilename(movieFilePath));
 
-            if (match.Count > 0)
+            if (!_diskProvider.FileExists(fullPath))
             {
-                var imageType = match[0].Groups["type"].Value;
-                return Parser.Parser.RemoveFileExtension(movieFilePath) + imageType + fileExtention;
+                return false;
             }
 
-            return existingImageName;
-        }
+            var fileContent = _diskProvider.ReadAllText(fullPath);
 
-        private string GetAudioCodec(string audioCodec)
-        {
-            if (audioCodec == "AC-3")
-            {
-                return "AC3";
-            }
-
-            return audioCodec;
+            return Regex.IsMatch(fileContent, "<watched>true</watched>");
         }
     }
 }

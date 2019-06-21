@@ -9,11 +9,9 @@ using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Core.MovieStats;
-using NzbDrone.Core.Tv;
-using NzbDrone.Core.Tv.Events;
+using NzbDrone.Core.Movies;
+using NzbDrone.Core.Movies.Events;
 using NzbDrone.Core.Validation.Paths;
-using NzbDrone.Core.DataAugmentation.Scene;
 using NzbDrone.Core.Validation;
 using NzbDrone.SignalR;
 using NzbDrone.Core.Datastore;
@@ -22,9 +20,9 @@ using Nancy;
 
 namespace NzbDrone.Api.Movies
 {
-    public class MovieModule : NzbDroneRestModuleWithSignalR<MovieResource, Core.Tv.Movie>, 
-                                IHandle<EpisodeImportedEvent>, 
-                                IHandle<EpisodeFileDeletedEvent>,
+    public class MovieModule : NzbDroneRestModuleWithSignalR<MovieResource, Core.Movies.Movie>, 
+                                IHandle<MovieImportedEvent>,
+                                IHandle<MovieFileDeletedEvent>,
                                 IHandle<MovieUpdatedEvent>,       
                                 IHandle<MovieEditedEvent>,  
                                 IHandle<MovieDeletedEvent>,
@@ -33,15 +31,12 @@ namespace NzbDrone.Api.Movies
 
     {
         protected readonly IMovieService _moviesService;
-        private readonly IMovieStatisticsService _moviesStatisticsService;
         private readonly IMapCoversToLocal _coverMapper;
 
 		private const string TITLE_SLUG_ROUTE = "/titleslug/(?<slug>[^/]+)";
 
         public MovieModule(IBroadcastSignalRMessage signalRBroadcaster,
                             IMovieService moviesService,
-                            IMovieStatisticsService moviesStatisticsService,
-                            ISceneMappingService sceneMappingService,
                             IMapCoversToLocal coverMapper,
                             RootFolderValidator rootFolderValidator,
                             MoviePathValidator moviesPathValidator,
@@ -53,7 +48,6 @@ namespace NzbDrone.Api.Movies
             : base(signalRBroadcaster)
         {
             _moviesService = moviesService;
-            _moviesStatisticsService = moviesStatisticsService;
 
             _coverMapper = coverMapper;
 
@@ -93,14 +87,11 @@ namespace NzbDrone.Api.Movies
 
         public MovieModule(IBroadcastSignalRMessage signalRBroadcaster,
                             IMovieService moviesService,
-                            IMovieStatisticsService moviesStatisticsService,
-                            ISceneMappingService sceneMappingService,
                             IMapCoversToLocal coverMapper,
                             string resource)
             : base(signalRBroadcaster, resource)
         {
             _moviesService = moviesService;
-            _moviesStatisticsService = moviesStatisticsService;
 
             _coverMapper = coverMapper;
 
@@ -119,14 +110,14 @@ namespace NzbDrone.Api.Movies
 
 		private PagingResource<MovieResource> GetMoviePaged(PagingResource<MovieResource> pagingResource)
 		{
-			var pagingSpec = pagingResource.MapToPagingSpec<MovieResource, Core.Tv.Movie>();
+			var pagingSpec = pagingResource.MapToPagingSpec<MovieResource, Core.Movies.Movie>();
 
             pagingSpec.FilterExpression = _moviesService.ConstructFilterExpression(pagingResource.FilterKey, pagingResource.FilterValue, pagingResource.FilterType);
 
             return ApplyToPage(_moviesService.Paged, pagingSpec, MapToResource);
 		}
 
-        protected MovieResource MapToResource(Core.Tv.Movie movies)
+        protected MovieResource MapToResource(Core.Movies.Movie movies)
         {
             if (movies == null) return null;
 
@@ -140,11 +131,11 @@ namespace NzbDrone.Api.Movies
 
         private List<MovieResource> AllMovie()
         {
-            var moviesStats = _moviesStatisticsService.MovieStatistics();
+            //var moviesStats = _moviesStatisticsService.MovieStatistics();
             var moviesResources = _moviesService.GetAllMovies().ToResource();
 
             MapCoversToLocal(moviesResources.ToArray());
-            LinkMovieStatistics(moviesResources, moviesStats);
+            //LinkMovieStatistics(moviesResources, moviesStats);
             PopulateAlternateTitles(moviesResources);
 
             return moviesResources;
@@ -216,28 +207,28 @@ namespace NzbDrone.Api.Movies
             }
         }
 
-        private void FetchAndLinkMovieStatistics(MovieResource resource)
-        {
-            LinkMovieStatistics(resource, _moviesStatisticsService.MovieStatistics(resource.Id));
-        }
+        //private void FetchAndLinkMovieStatistics(MovieResource resource)
+        //{
+        //    LinkMovieStatistics(resource, _moviesStatisticsService.MovieStatistics(resource.Id));
+        //}
 
-        private void LinkMovieStatistics(List<MovieResource> resources, List<MovieStatistics> moviesStatistics)
-        {
-            var dictMovieStats = moviesStatistics.ToDictionary(v => v.MovieId);
+        //private void LinkMovieStatistics(List<MovieResource> resources, List<MovieStatistics> moviesStatistics)
+        //{
+        //    var dictMovieStats = moviesStatistics.ToDictionary(v => v.MovieId);
 
-            foreach (var movies in resources)
-            {
-                var stats = dictMovieStats.GetValueOrDefault(movies.Id);
-                if (stats == null) continue;
+        //    foreach (var movies in resources)
+        //    {
+        //        var stats = dictMovieStats.GetValueOrDefault(movies.Id);
+        //        if (stats == null) continue;
 
-                LinkMovieStatistics(movies, stats);
-            }
-        }
+        //        LinkMovieStatistics(movies, stats);
+        //    }
+        //}
 
-        private void LinkMovieStatistics(MovieResource resource, MovieStatistics moviesStatistics)
-        {
-            //resource.SizeOnDisk = 0;//TODO: incorporate movie statistics moviesStatistics.SizeOnDisk;
-        }
+        //private void LinkMovieStatistics(MovieResource resource, MovieStatistics moviesStatistics)
+        //{
+        //    //resource.SizeOnDisk = 0;//TODO: incorporate movie statistics moviesStatistics.SizeOnDisk;
+        //}
 
         private void PopulateAlternateTitles(List<MovieResource> resources)
         {
@@ -258,16 +249,16 @@ namespace NzbDrone.Api.Movies
             //resource.AlternateTitles = mappings.Select(v => new AlternateTitleResource { Title = v.Title, SeasonNumber = v.SeasonNumber, SceneSeasonNumber = v.SceneSeasonNumber }).ToList();
         }
 
-        public void Handle(EpisodeImportedEvent message)
+        public void Handle(MovieImportedEvent message)
         {
-            //BroadcastResourceChange(ModelAction.Updated, message.ImportedEpisode.MovieId);
+            BroadcastResourceChange(ModelAction.Updated, message.ImportedMovie.MovieId);
         }
 
-        public void Handle(EpisodeFileDeletedEvent message)
+        public void Handle(MovieFileDeletedEvent message)
         {
             if (message.Reason == DeleteMediaFileReason.Upgrade) return;
 
-            //BroadcastResourceChange(ModelAction.Updated, message.EpisodeFile.MovieId);
+            BroadcastResourceChange(ModelAction.Updated, message.MovieFile.MovieId);
         }
 
         public void Handle(MovieUpdatedEvent message)

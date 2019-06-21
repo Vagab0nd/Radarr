@@ -9,6 +9,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download.Clients.DownloadStation.Proxies;
+using NzbDrone.Core.Organizer;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using NzbDrone.Core.Validation;
@@ -30,11 +31,13 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
                                      IDownloadStationTaskProxy dsTaskProxy,
                                      IHttpClient httpClient,
                                      IConfigService configService,
+                                     INamingConfigService namingConfigService,
                                      IDiskProvider diskProvider,
                                      IRemotePathMappingService remotePathMappingService,
+                                     IValidateNzbs nzbValidationService,
                                      Logger logger
                                      )
-            : base(httpClient, configService, diskProvider, remotePathMappingService, logger)
+            : base(httpClient, configService, namingConfigService, diskProvider, remotePathMappingService, nzbValidationService, logger)
         {
             _dsInfoProxy = dsInfoProxy;
             _dsTaskProxy = dsTaskProxy;
@@ -99,7 +102,8 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
                     RemainingSize = taskRemainingSize,
                     Status = GetStatus(nzb),
                     Message = GetMessage(nzb),
-                    IsReadOnly = !IsFinished(nzb)
+                    CanBeRemoved = true,
+                    CanMoveFiles = true
                 };
 
                 if (item.Status != DownloadItemStatus.Paused)
@@ -160,12 +164,7 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
             _logger.Debug("{0} removed correctly", downloadId);
         }
 
-        protected override string AddFromNzbFile(RemoteEpisode remoteEpisode, string filename, byte[] fileContent)
-        {
-            throw new DownloadClientException("Episodes are not working with Radarr");
-        }
-
-        protected override string AddFromNzbFile(RemoteMovie remoteEpisode, string filename, byte[] fileContent)
+        protected override string AddFromNzbFile(RemoteMovie remoteMovie, string filename, byte[] fileContent)
         {
             var hashedSerialNumber = _serialNumberProvider.GetSerialNumber(Settings);
 
@@ -177,7 +176,7 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
 
             if (item != null)
             {
-                _logger.Debug("{0} added correctly", remoteEpisode);
+                _logger.Debug("{0} added correctly", remoteMovie);
                 return CreateDownloadId(item.Id, hashedSerialNumber);
             }
 
@@ -238,12 +237,12 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
             }
             catch (DownloadClientAuthenticationException ex) // User could not have permission to access to downloadstation
             {
-                _logger.Error(ex);
+                _logger.Error(ex, ex.Message);
                 return new NzbDroneValidationFailure(string.Empty, ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex);
+                _logger.Error(ex, "Error testing Usenet Download Station");
                 return new NzbDroneValidationFailure(string.Empty, $"Unknown exception: {ex.Message}");
             }
         }
@@ -264,7 +263,7 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
             }
             catch (WebException ex)
             {
-                _logger.Error(ex);
+                _logger.Error(ex, "Unable to connect to Usenet Download Station");
 
                 if (ex.Status == WebExceptionStatus.ConnectFailure)
                 {
@@ -277,7 +276,7 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
             }
             catch (Exception ex)
             {
-                _logger.Error(ex);
+                _logger.Error(ex, "Error testing Torrent Download Station");
                 return new NzbDroneValidationFailure(string.Empty, "Unknown exception: " + ex.Message);
             }
         }
@@ -294,11 +293,6 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
             }
 
             return null;
-        }
-
-        protected bool IsFinished(DownloadStationTask task)
-        {
-            return task.Status == DownloadStationTaskStatus.Finished;
         }
 
         protected string GetMessage(DownloadStationTask task)
@@ -323,7 +317,9 @@ namespace NzbDrone.Core.Download.Clients.DownloadStation
         {
             switch (task.Status)
             {
+                case DownloadStationTaskStatus.Unknown:
                 case DownloadStationTaskStatus.Waiting:
+                case DownloadStationTaskStatus.FilehostingWaiting:
                     return task.Size == 0 || GetRemainingSize(task) > 0 ? DownloadItemStatus.Queued : DownloadItemStatus.Completed;
                 case DownloadStationTaskStatus.Paused:
                     return DownloadItemStatus.Paused;

@@ -1,6 +1,7 @@
-#addin nuget:?package=Cake.Npm&version=0.12.1
-#addin nuget:?package=SharpZipLib&version=0.86.0
-#addin nuget:?package=Cake.Compression&version=0.1.4
+#addin nuget:?package=Cake.Npm
+#addin nuget:?package=SharpZipLib
+#addin nuget:?package=Cake.Compression
+#addin "Cake.FileHelpers"
 
 // Build variables
 var outputFolder = "./_output";
@@ -27,7 +28,7 @@ public void RemoveEmptyFolders(string startLocation) {
     {
         RemoveEmptyFolders(directory);
 
-        if (System.IO.Directory.GetFiles(directory).Length == 0 && 
+        if (System.IO.Directory.GetFiles(directory).Length == 0 &&
             System.IO.Directory.GetDirectories(directory).Length == 0)
         {
             DeleteDirectory(directory, false);
@@ -57,12 +58,12 @@ public void CleanFolder(string path, bool keepConfigFiles) {
 public void CreateMdbs(string path) {
 	foreach (var file in System.IO.Directory.EnumerateFiles(path, "*.pdb", System.IO.SearchOption.AllDirectories)) {
 		var actualFile = file.Substring(0, file.Length - 4);
-		
+
 		if (FileExists(actualFile + ".exe")) {
 			StartProcess("./tools/pdb2mdb/pdb2mdb.exe", new ProcessSettings()
 				.WithArguments(args => args.Append(actualFile + ".exe")));
 		}
-		
+
 		if (FileExists(actualFile + ".dll")) {
 			StartProcess("./tools/pdb2mdb/pdb2mdb.exe", new ProcessSettings()
 				.WithArguments(args => args.Append(actualFile + ".dll")));
@@ -77,15 +78,15 @@ Task("Compile").Does(() => {
 		DeleteDirectory(outputFolder, true);
 	}
 
-	MSBuild(solutionFile, config => 
-		config.UseToolVersion(MSBuildToolVersion.VS2015)
+	MSBuild(solutionFile, config =>
+		config.UseToolVersion(MSBuildToolVersion.VS2017)
 			.WithTarget("Clean")
 			.SetVerbosity(Verbosity.Minimal));
 
 	NuGetRestore(solutionFile);
 
-	MSBuild(solutionFile, config => 
-		config.UseToolVersion(MSBuildToolVersion.VS2015)
+	MSBuild(solutionFile, config =>
+		config.UseToolVersion(MSBuildToolVersion.VS2017)
 			.SetPlatformTarget(PlatformTarget.x86)
 			.SetConfiguration("Release")
 			.WithProperty("AllowedReferenceRelatedFileExtensions", new string[] { ".pdb" })
@@ -109,7 +110,7 @@ Task("Gulp").Does(() => {
 		WorkingDirectory = "./",
 		Production = true
 	});
-	
+
 	NpmRunScript("build");
 });
 
@@ -130,7 +131,7 @@ Task("PackageMono").Does(() => {
 	// Remove service helpers
 	DeleteFiles(outputFolderMono + "/ServiceUninstall.*");
 	DeleteFiles(outputFolderMono + "/ServiceInstall.*");
-	
+
 	// Remove native windows binaries
 	DeleteFiles(outputFolderMono + "/sqlite3.*");
 	DeleteFiles(outputFolderMono + "/MediaInfo.*");
@@ -173,12 +174,12 @@ Task("PackageOsx").Does(() => {
 		.WithArguments(args => args
 			.Append("+x")
 			.Append(outputFolderOsx + "/Radarr")));
-	
+
 	// Adding Startup script
 	CopyFile("./osx/Radarr", outputFolderOsx + "/Radarr");
 });
 
-Task("PackageOsxApp").Does(() => {
+Task("PackageOsxApp").Does((ctx) => {
 	// Start osx app package
 	if (DirectoryExists(outputFolderOsxApp)) {
 		DeleteDirectory(outputFolderOsxApp, true);
@@ -189,6 +190,9 @@ Task("PackageOsxApp").Does(() => {
 	// Copy osx package files
 	CopyDirectory("./osx/Radarr.app", outputFolderOsxApp + "/Radarr.app");
 	CopyDirectory(outputFolderOsx, outputFolderOsxApp + "/Radarr.app/Contents/MacOS");
+
+    // Edit version of osx app
+    ctx.ReplaceTextInFiles(outputFolderOsxApp + "/Radarr.app/Contents/Info.plist", "2.0", ctx.EnvironmentVariable("APPVEYOR_BUILD_VERSION") ?? "unknown");
 });
 
 Task("PackageTests").Does(() => {
@@ -219,7 +223,7 @@ Task("PackageTests").Does(() => {
 
 	// Copy dlls
 	CopyFiles(outputFolder + "/*.dll", testPackageFolder);
-	
+
 	// Copy scripts
 	CopyFiles("./*.sh", testPackageFolder);
 

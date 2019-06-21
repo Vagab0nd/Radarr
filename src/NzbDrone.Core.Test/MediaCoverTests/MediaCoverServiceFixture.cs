@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FizzWare.NBuilder;
@@ -8,26 +8,39 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.MediaCover;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Test.Framework;
-using NzbDrone.Core.Tv;
-using NzbDrone.Core.Tv.Events;
+using NzbDrone.Core.Movies;
+using NzbDrone.Core.Movies.Events;
 
 namespace NzbDrone.Core.Test.MediaCoverTests
 {
     [TestFixture]
     public class MediaCoverServiceFixture : CoreTest<MediaCoverService>
     {
-        Series _series;
+        Movie _movie;
 
         [SetUp]
         public void Setup()
         {
             Mocker.SetConstant<IAppFolderInfo>(new AppFolderInfo(Mocker.Resolve<IStartupContext>()));
 
-            _series = Builder<Series>.CreateNew()
+            _movie = Builder<Movie>.CreateNew()
                 .With(v => v.Id = 2)
                 .With(v => v.Images = new List<MediaCover.MediaCover> { new MediaCover.MediaCover(MediaCoverTypes.Poster, "") })
                 .Build();
+
+            Mocker.GetMock<IMovieService>().Setup(m => m.GetMovie(It.Is<int>(id => id == _movie.Id))).Returns(_movie);
+        }
+
+        private void ExecuteAndVerifyCommand(Movie movie)
+        {
+            Subject.HandleAsync(new MovieUpdatedEvent(movie));
+            
+            Mocker.GetMock<IManageCommandQueue>()
+                .Verify(v => v.Push(It.Is<EnsureMediaCoversCommand>(c => c.MovieId == movie.Id), It.IsAny<CommandPriority>(), It.IsAny<CommandTrigger>()), Times.Once());
+            
+            Subject.Execute(new EnsureMediaCoversCommand(movie.Id));
         }
 
         [Test]
@@ -76,7 +89,7 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(true);
 
-            Subject.HandleAsync(new SeriesUpdatedEvent(_series));
+            ExecuteAndVerifyCommand(_movie);
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
@@ -93,7 +106,7 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(false);
 
-            Subject.HandleAsync(new SeriesUpdatedEvent(_series));
+            ExecuteAndVerifyCommand(_movie);
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
@@ -114,7 +127,7 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.GetFileSize(It.IsAny<string>()))
                   .Returns(1000);
 
-            Subject.HandleAsync(new SeriesUpdatedEvent(_series));
+            ExecuteAndVerifyCommand(_movie);
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never());
@@ -135,7 +148,7 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.GetFileSize(It.IsAny<string>()))
                   .Returns(0);
 
-            Subject.HandleAsync(new SeriesUpdatedEvent(_series));
+            ExecuteAndVerifyCommand(_movie);
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
@@ -156,7 +169,7 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
                   .Throws<ApplicationException>();
 
-            Subject.HandleAsync(new SeriesUpdatedEvent(_series));
+            ExecuteAndVerifyCommand(_movie);
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));

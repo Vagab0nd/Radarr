@@ -1,4 +1,7 @@
-﻿namespace NzbDrone.Core.Parser
+using System.Collections.Generic;
+using System.Linq;
+
+namespace NzbDrone.Core.Parser
 {
     public enum Language
     {
@@ -25,6 +28,16 @@
         Greek = 20,
         Korean = 21,
         Hungarian = 22,
-        Hebrew = 23
+        Hebrew = 23,
+        Czech = 24,
+        Any = -1,
+    }
+
+    public static class LanguageExtensions
+    {
+        public static string ToExtendedString(this IEnumerable<Language> languages)
+        {
+            return string.Join(", ", languages.Select(l => l.ToString()));
+        }
     }
 }

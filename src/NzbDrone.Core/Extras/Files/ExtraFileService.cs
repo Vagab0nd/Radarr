@@ -7,8 +7,8 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Core.Tv;
-using NzbDrone.Core.Tv.Events;
+using NzbDrone.Core.Movies;
+using NzbDrone.Core.Movies.Events;
 
 namespace NzbDrone.Core.Extras.Files
 {
@@ -47,8 +47,6 @@ namespace NzbDrone.Core.Extras.Files
             _recycleBinProvider = recycleBinProvider;
             _logger = logger;
         }
-
-        public virtual bool PermanentlyDelete => false;
 
         public List<TExtraFile> GetFilesByMovie(int movieId)
         {
@@ -121,16 +119,8 @@ namespace NzbDrone.Core.Extras.Files
 
                     if (_diskProvider.FileExists(path))
                     {
-                        if (PermanentlyDelete)
-                        {
-                            _diskProvider.DeleteFile(path);
-                        }
-
-                        else
-                        {
-                            // Send extra files to the recycling bin so they can be recovered if necessary
-                            _recycleBinProvider.DeleteFile(path);
-                        }
+                        // Send to the recycling bin so they can be recovered if necessary
+                        _recycleBinProvider.DeleteFile(path);
                     }
                 }
             }

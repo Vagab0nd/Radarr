@@ -13,7 +13,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Organizer;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.MediaFiles
@@ -128,11 +128,11 @@ namespace NzbDrone.Core.MediaFiles
                 {
                     _logger.Error(ex, "Failed to rename file: " + oldMovieFilePath);
                 }
+            }
 
-                if (renamed.Any())
-                {
-                    _eventAggregator.PublishEvent(new MovieRenamedEvent(movie));
-                }
+            if (renamed.Any())
+            {
+                _eventAggregator.PublishEvent(new MovieRenamedEvent(movie));
             }
         }
 

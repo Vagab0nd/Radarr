@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
+using NzbDrone.Common.Extensions;
 
 namespace NzbDrone.Core.Indexers.AwesomeHD
 {
@@ -62,6 +63,8 @@ namespace NzbDrone.Core.Indexers.AwesomeHD
                     Subtitles = x.Element("subtitles").Value,
                     EncodeStatus = x.Element("encodestatus").Value,
                     Freeleech = x.Element("freeleech").Value,
+                    Internal = x.Element("internal").Value == "1",
+                    UserRelease = x.Element("userrelease").Value == "1",
                     ImdbId = x.Element("imdb").Value
                 }).ToList();
 
@@ -71,14 +74,35 @@ namespace NzbDrone.Core.Indexers.AwesomeHD
                     var title = $"{torrent.Name}.{torrent.Year}.{torrent.Resolution}.{torrent.Media}.{torrent.Encoding}.{torrent.AudioFormat}-{torrent.ReleaseGroup}";
                     IndexerFlags flags = 0;
 
-                    if (torrent.Freeleech == "0.00" || torrent.Freeleech == "0.25")
+                    if (torrent.Freeleech == "0.00")
                     {
                         flags |= IndexerFlags.G_Freeleech;
+                    }
+
+                    if (torrent.Freeleech == "0.25")
+                    {
+                        flags |= IndexerFlags.G_Freeleech75;
+                    }
+
+                    if (torrent.Freeleech == "0.75")
+                    {
+                        flags |= IndexerFlags.G_Freeleech25;
                     }
 
                     if (torrent.Freeleech == "0.50")
                     {
                         flags |= IndexerFlags.G_Halfleech;
+                    }
+
+                    if (torrent.Internal)
+                    {
+                        flags |= IndexerFlags.AHD_Internal;
+                    }
+
+                    var imdbId = 0;
+                    if (torrent.ImdbId.Length > 2)
+                    {
+                        imdbId = int.Parse(torrent.ImdbId.Substring(2));
                     }
 
                     torrentInfos.Add(new TorrentInfo()
@@ -91,7 +115,7 @@ namespace NzbDrone.Core.Indexers.AwesomeHD
                         Seeders = int.Parse(torrent.Seeders),
                         Peers = int.Parse(torrent.Leechers) + int.Parse(torrent.Seeders),
                         PublishDate = torrent.Time.ToUniversalTime(),
-                        ImdbId = int.Parse(torrent.ImdbId.Substring(2)),
+                        ImdbId = imdbId,
                         IndexerFlags = flags,
                     });
                 }
@@ -105,6 +129,8 @@ namespace NzbDrone.Core.Indexers.AwesomeHD
 
             return torrentInfos.OrderByDescending(o => ((dynamic)o).Seeders).ToArray();
         }
+
+        public Action<IDictionary<string, string>, DateTime?> CookiesUpdater { get; set; }
 
         private string GetDownloadUrl(string torrentId, string authKey, string passKey)
         {

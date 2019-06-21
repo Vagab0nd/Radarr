@@ -18,14 +18,15 @@ module.exports = Marionette.ItemView.extend({
         staticPath        : '.x-static-path',
         rootFolder          : '.x-root-folder',
         selectedCount       : '.x-selected-count',
-        container           : '.series-editor-footer',
+        container           : '.movie-editor-footer',
         actions             : '.x-action'
     },
 
     events : {
         'click .x-save'           : '_updateAndSave',
         'change .x-root-folder'   : '_rootFolderChanged',
-        'click .x-organize-files' : '_organizeFiles'
+        'click .x-organize-files' : '_organizeFiles',
+        'click .x-update-quality' : '_updateQuality'
     },
 
     templateHelpers : function() {

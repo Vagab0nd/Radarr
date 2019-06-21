@@ -1,10 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Profiles.Delay;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.CustomFormats;
+using NzbDrone.Core.Qualities;
 
 namespace NzbDrone.Core.DecisionEngine
 {
@@ -49,7 +51,7 @@ namespace NzbDrone.Core.DecisionEngine
         private int CompareByReverse<TSubject, TValue>(TSubject left, TSubject right, Func<TSubject, TValue> funcValue)
             where TValue : IComparable<TValue>
         {
-            return CompareBy(left, right, funcValue)*-1;
+            return CompareBy(left, right, funcValue) * -1;
         }
 
         private int CompareAll(params int[] comparers)
@@ -59,15 +61,24 @@ namespace NzbDrone.Core.DecisionEngine
 
         private int CompareQuality(DownloadDecision x, DownloadDecision y)
         {
-            if (x.IsForMovie && y.IsForMovie)
-            {
-                return CompareAll(CompareBy(x.RemoteMovie, y.RemoteMovie, remoteEpisode => remoteEpisode.Movie.Profile.Value.Items.FindIndex(v => v.Quality == remoteEpisode.ParsedMovieInfo.Quality.Quality)),
-                           CompareBy(x.RemoteMovie, y.RemoteMovie, remoteEpisode => remoteEpisode.ParsedMovieInfo.Quality.Revision.Real),
-                           CompareBy(x.RemoteMovie, y.RemoteMovie, remoteEpisode => remoteEpisode.ParsedMovieInfo.Quality.Revision.Version));
-            }
-            return CompareAll(CompareBy(x.RemoteEpisode, y.RemoteEpisode, remoteEpisode => remoteEpisode.Series.Profile.Value.Items.FindIndex(v => v.Quality == remoteEpisode.ParsedEpisodeInfo.Quality.Quality)),
-                           CompareBy(x.RemoteEpisode, y.RemoteEpisode, remoteEpisode => remoteEpisode.ParsedEpisodeInfo.Quality.Revision.Real),
-                           CompareBy(x.RemoteEpisode, y.RemoteEpisode, remoteEpisode => remoteEpisode.ParsedEpisodeInfo.Quality.Revision.Version));
+            return CompareAll(CompareBy(x.RemoteMovie, y.RemoteMovie, remoteMovie => remoteMovie.Movie.Profile.Value.Items.FindIndex(v => v.Quality == remoteMovie.ParsedMovieInfo.Quality.Quality)),
+                       CompareCustomFormats(x, y),
+                       CompareBy(x.RemoteMovie, y.RemoteMovie, remoteMovie => remoteMovie.ParsedMovieInfo.Quality.Revision.Real),
+                       CompareBy(x.RemoteMovie, y.RemoteMovie, remoteMovie => remoteMovie.ParsedMovieInfo.Quality.Revision.Version));
+        }
+
+        private int CompareCustomFormats(DownloadDecision x, DownloadDecision y)
+        {
+            var left = x.RemoteMovie.ParsedMovieInfo.Quality.CustomFormats.WithNone();
+            var right = y.RemoteMovie.ParsedMovieInfo.Quality.CustomFormats;
+
+            var leftIndicies = QualityModelComparer.GetIndicies(left, x.RemoteMovie.Movie.Profile.Value);
+            var rightIndicies =  QualityModelComparer.GetIndicies(right, y.RemoteMovie.Movie.Profile.Value);
+
+            var leftTotal = leftIndicies.Sum();
+            var rightTotal = rightIndicies.Sum();
+
+            return leftTotal.CompareTo(rightTotal);
         }
 
         private int ComparePreferredWords(DownloadDecision x, DownloadDecision y)
@@ -89,7 +100,7 @@ namespace NzbDrone.Core.DecisionEngine
 
             });
         }
-        
+
         private int CompareIndexerFlags(DownloadDecision x, DownloadDecision y)
         {
             var releaseX = x.RemoteMovie.Release;
@@ -107,44 +118,20 @@ namespace NzbDrone.Core.DecisionEngine
 
         private int CompareProtocol(DownloadDecision x, DownloadDecision y)
         {
-
-
-            if (x.IsForMovie)
+            var result = CompareBy(x.RemoteMovie, y.RemoteMovie, remoteEpisode =>
             {
-                return CompareBy(x.RemoteMovie, y.RemoteMovie, remoteEpisode =>
-                {
-                    var delayProfile = _delayProfileService.BestForTags(remoteEpisode.Movie.Tags);
-                    var downloadProtocol = remoteEpisode.Release.DownloadProtocol;
-                    return downloadProtocol == delayProfile.PreferredProtocol;
-                });
-            }
-            
-            var result = CompareBy(x.RemoteEpisode, y.RemoteEpisode, remoteEpisode =>
-            {
-                var delayProfile = _delayProfileService.BestForTags(remoteEpisode.Series.Tags);
+                var delayProfile = _delayProfileService.BestForTags(remoteEpisode.Movie.Tags);
                 var downloadProtocol = remoteEpisode.Release.DownloadProtocol;
                 return downloadProtocol == delayProfile.PreferredProtocol;
             });
 
-            
-
             return result;
-        }
-
-        private int CompareEpisodeCount(DownloadDecision x, DownloadDecision y)
-        {
-            return 0;
-        }
-
-        private int CompareEpisodeNumber(DownloadDecision x, DownloadDecision y)
-        {
-            return CompareByReverse(x.RemoteEpisode, y.RemoteEpisode, remoteEpisode => remoteEpisode.Episodes.Select(e => e.EpisodeNumber).MinOrDefault());
         }
 
         private int ComparePeersIfTorrent(DownloadDecision x, DownloadDecision y)
         {
             // Different protocols should get caught when checking the preferred protocol,
-            // since we're dealing with the same series in our comparisions
+            // since we're dealing with the same movie in our comparisions
             if (x.RemoteMovie.Release.DownloadProtocol != DownloadProtocol.Torrent ||
                 y.RemoteMovie.Release.DownloadProtocol != DownloadProtocol.Torrent)
             {

@@ -57,7 +57,7 @@ module.exports = Marionette.Layout.extend({
     _setupFilter : function () {
         var self = this;
 
-        //TODO: This should be a mixin (same as Add Series searching)
+        //TODO: This should be a mixin (same as Add Movie searching)
         this.ui.filter.keyup(function(e) {
             if (_.contains([
                     9,
@@ -87,7 +87,7 @@ module.exports = Marionette.Layout.extend({
 
     _filter : function (term) {
         this.movieCollection.reset(this.fullMovieCollection.filter(function(model){
-            return (model.get("title") + " "+model.get("year")+"").toLowerCase().indexOf(term.toLowerCase()) != -1;
+            return (model.get("title") + " "+model.get("year")+"").toLowerCase().indexOf(term.toLowerCase()) !== -1;
         }).slice(0, 50));
 
         this._setModelCollection();
@@ -95,7 +95,6 @@ module.exports = Marionette.Layout.extend({
     },
 
     _onSelected : function (e) {
-        debugger;
         this.trigger('manualimport:selected:movie', { model: e.model });
 
         vent.trigger(vent.Commands.CloseModal2Command);

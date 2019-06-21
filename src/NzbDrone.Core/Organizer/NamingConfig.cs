@@ -1,4 +1,5 @@
-﻿using NzbDrone.Core.Datastore;
+using System;
+using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Organizer
 {
@@ -8,25 +9,46 @@ namespace NzbDrone.Core.Organizer
         {
             RenameEpisodes = false,
             ReplaceIllegalCharacters = true,
+            ColonReplacementFormat = 0,
             MultiEpisodeStyle = 0,
-            StandardEpisodeFormat = "{Series Title} - S{season:00}E{episode:00} - {Episode Title} {Quality Full}",
-            DailyEpisodeFormat = "{Series Title} - {Air-Date} - {Episode Title} {Quality Full}",
-            AnimeEpisodeFormat = "{Series Title} - S{season:00}E{episode:00} - {Episode Title} {Quality Full}",
-            SeriesFolderFormat = "{Series Title}",
-            SeasonFolderFormat = "Season {season}",
             MovieFolderFormat = "{Movie Title} ({Release Year})",
             StandardMovieFormat = "{Movie Title} ({Release Year}) {Quality Full}",
         };
 
         public bool RenameEpisodes { get; set; }
         public bool ReplaceIllegalCharacters { get; set; }
+        public ColonReplacementFormat ColonReplacementFormat { get; set; }
         public int MultiEpisodeStyle { get; set; }
-        public string StandardEpisodeFormat { get; set; }
-        public string DailyEpisodeFormat { get; set; }
-        public string AnimeEpisodeFormat { get; set; }
-        public string SeriesFolderFormat { get; set; }
-        public string SeasonFolderFormat { get; set; }
         public string StandardMovieFormat { get; set; }
         public string MovieFolderFormat { get; set; }
+    }
+
+    public enum ColonReplacementFormat
+    {
+        Delete = 0,
+        Dash = 1,
+        SpaceDash = 2,
+        SpaceDashSpace = 3
+    }
+
+    static class ColonReplacementFormatMethods
+    {
+
+        public static String GetFormatString(this ColonReplacementFormat format)
+        {
+            switch (format)
+            {
+                case ColonReplacementFormat.Delete:
+                    return "";
+                case ColonReplacementFormat.Dash:
+                    return "-";
+                case ColonReplacementFormat.SpaceDash:
+                    return " -";
+                case ColonReplacementFormat.SpaceDashSpace:
+                    return " - ";
+                default:
+                    return "";
+            }
+        }
     }
 }

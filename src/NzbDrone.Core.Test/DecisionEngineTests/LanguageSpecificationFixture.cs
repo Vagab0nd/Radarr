@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+using System.Collections.Generic;
+using FluentAssertions;
 using Marr.Data;
 using NUnit.Framework;
 using NzbDrone.Core.DecisionEngine.Specifications;
@@ -6,7 +7,7 @@ using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Profiles;
 using NzbDrone.Core.Test.Framework;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Test.DecisionEngineTests
 {
@@ -14,18 +15,18 @@ namespace NzbDrone.Core.Test.DecisionEngineTests
 
     public class LanguageSpecificationFixture : CoreTest
     {
-        private RemoteEpisode _remoteEpisode;
+        private RemoteMovie _remoteMovie;
 
         [SetUp]
         public void Setup()
         {
-            _remoteEpisode = new RemoteEpisode
+            _remoteMovie = new RemoteMovie
             {
-                ParsedEpisodeInfo = new ParsedEpisodeInfo
+                ParsedMovieInfo = new ParsedMovieInfo
                 {
-                    Language = Language.English
+                    Languages = new List<Language> {Language.English}
                 },
-                Series = new Series
+                Movie = new Movie
                          {
                              Profile = new LazyLoaded<Profile>(new Profile
                                                                {
@@ -37,12 +38,12 @@ namespace NzbDrone.Core.Test.DecisionEngineTests
 
         private void WithEnglishRelease()
         {
-            _remoteEpisode.ParsedEpisodeInfo.Language = Language.English;
+            _remoteMovie.ParsedMovieInfo.Languages = new List<Language> {Language.English};
         }
 
         private void WithGermanRelease()
         {
-            _remoteEpisode.ParsedEpisodeInfo.Language = Language.German;            
+            _remoteMovie.ParsedMovieInfo.Languages = new List<Language> {Language.German};
         }
 
         [Test]
@@ -50,7 +51,7 @@ namespace NzbDrone.Core.Test.DecisionEngineTests
         {
             WithEnglishRelease();
 
-            Mocker.Resolve<LanguageSpecification>().IsSatisfiedBy(_remoteEpisode, null).Accepted.Should().BeTrue();
+            Mocker.Resolve<LanguageSpecification>().IsSatisfiedBy(_remoteMovie, null).Accepted.Should().BeTrue();
         }
 
         [Test]
@@ -58,7 +59,24 @@ namespace NzbDrone.Core.Test.DecisionEngineTests
         {
             WithGermanRelease();
 
-            Mocker.Resolve<LanguageSpecification>().IsSatisfiedBy(_remoteEpisode, null).Accepted.Should().BeFalse();
+            Mocker.Resolve<LanguageSpecification>().IsSatisfiedBy(_remoteMovie, null).Accepted.Should().BeFalse();
+        }
+
+        [Test]
+        public void should_return_true_if_allowed_language_any()
+        {
+            _remoteMovie.Movie.Profile = new LazyLoaded<Profile>(new Profile
+            {
+                Language = Language.Any
+            });
+
+            WithGermanRelease();
+
+            Mocker.Resolve<LanguageSpecification>().IsSatisfiedBy(_remoteMovie, null).Accepted.Should().BeTrue();
+
+            WithEnglishRelease();
+
+            Mocker.Resolve<LanguageSpecification>().IsSatisfiedBy(_remoteMovie, null).Accepted.Should().BeTrue();
         }
     }
 }

@@ -6,7 +6,7 @@ using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.SignalR;
 
@@ -47,7 +47,7 @@ namespace NzbDrone.Api.MovieFiles
 
 
         private void SetQuality(MovieFileResource movieFileResource)
-        {  
+        {
             var movieFile = _mediaFileService.GetMovie(movieFileResource.Id);
             movieFile.Quality = movieFileResource.Quality;
             _mediaFileService.Update(movieFile);

@@ -10,10 +10,11 @@ using Marr.Data;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.MediaFiles;
-using NzbDrone.Core.MediaFiles.EpisodeImport;
+using NzbDrone.Core.MediaFiles.MovieImport;
 using NzbDrone.Core.RootFolders;
 using NzbDrone.Common.Cache;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
+using NzbDrone.Core.Profiles;
 
 namespace NzbDrone.Api.Movies
 {
@@ -32,19 +33,25 @@ namespace NzbDrone.Api.Movies
         private readonly IRootFolderService _rootFolderService;
         private readonly IMakeImportDecision _importDecisionMaker;
         private readonly IDiskScanService _diskScanService;
-		private readonly ICached<Core.Tv.Movie> _mappedMovies;
+		private readonly ICached<Core.Movies.Movie> _mappedMovies;
+        private readonly IParsingService _parsingService;
+        private readonly IProfileService _profileService;
         private readonly IMovieService _movieService;
 
-        public MovieBulkImportModule(ISearchForNewMovie searchProxy, IRootFolderService rootFolderService, IMakeImportDecision importDecisionMaker,
-		                             IDiskScanService diskScanService, ICacheManager cacheManager, IMovieService movieService)
+        public MovieBulkImportModule(ISearchForNewMovie searchProxy, IRootFolderService rootFolderService,
+            IMakeImportDecision importDecisionMaker,
+		    IDiskScanService diskScanService, ICacheManager cacheManager,
+            IParsingService parsingService, IProfileService profileService, IMovieService movieService)
             : base("/movies/bulkimport")
         {
             _searchProxy = searchProxy;
             _rootFolderService = rootFolderService;
             _importDecisionMaker = importDecisionMaker;
             _diskScanService = diskScanService;
-			_mappedMovies = cacheManager.GetCache<Core.Tv.Movie>(GetType(), "mappedMoviesCache");
+			_mappedMovies = cacheManager.GetCache<Core.Movies.Movie>(GetType(), "mappedMoviesCache");
             _movieService = movieService;
+            _profileService = profileService;
+            _parsingService = parsingService;
             Get["/"] = x => Search();
         }
 
@@ -55,6 +62,8 @@ namespace NzbDrone.Api.Movies
             {
                 //Todo error handling
             }
+
+            Profile tempProfile = _profileService.All().First();
 
             RootFolder rootFolder = _rootFolderService.Get(Request.Query.Id);
 
@@ -80,7 +89,7 @@ namespace NzbDrone.Api.Movies
 
             var mapped = paged.Select(f =>
 			{
-				Core.Tv.Movie m = null;
+				Core.Movies.Movie m = null;
 
 				var mappedMovie = _mappedMovies.Find(f.Name);
 
@@ -89,23 +98,27 @@ namespace NzbDrone.Api.Movies
 					return mappedMovie;
 				}
 
-				var parsedTitle = Parser.ParseMoviePath(f.Name, false);
+			    var parsedTitle = _parsingService.ParseMinimalPathMovieInfo(f.Name);
 				if (parsedTitle == null)
 				{
-					m = new Core.Tv.Movie
+					m = new Core.Movies.Movie
 					{
 						Title = f.Name.Replace(".", " ").Replace("-", " "),
 						Path = f.Path,
+					    Profile = tempProfile
 					};
 				}
 				else
 				{
-					m = new Core.Tv.Movie
+				    parsedTitle.ImdbId = Parser.ParseImdbId(parsedTitle.SimpleReleaseTitle);
+
+					m = new Core.Movies.Movie
 					{
 						Title = parsedTitle.MovieTitle,
 						Year = parsedTitle.Year,
 						ImdbId = parsedTitle.ImdbId,
-						Path = f.Path
+						Path = f.Path,
+					    Profile = tempProfile
 					};
 				}
 
@@ -119,7 +132,7 @@ namespace NzbDrone.Api.Movies
 				{
 					var local = decision.LocalMovie;
 
-					m.MovieFile = new LazyLoaded<MovieFile>(new MovieFile
+					m.MovieFile = new MovieFile
 					{
 						Path = local.Path,
 						Edition = local.ParsedMovieInfo.Edition,
@@ -127,7 +140,7 @@ namespace NzbDrone.Api.Movies
 						MediaInfo = local.MediaInfo,
 						ReleaseGroup = local.ParsedMovieInfo.ReleaseGroup,
 						RelativePath = f.Path.GetRelativePath(local.Path)
-					});
+					};
 				}
 
 				mappedMovie = _searchProxy.MapMovieToTmdbMovie(m);
@@ -143,7 +156,7 @@ namespace NzbDrone.Api.Movies
 
 				return null;
             });
-            
+
             return new PagingResource<MovieResource>
             {
                 Page = page,
@@ -156,7 +169,7 @@ namespace NzbDrone.Api.Movies
         }
 
 
-        private static IEnumerable<MovieResource> MapToResource(IEnumerable<Core.Tv.Movie> movies)
+        private static IEnumerable<MovieResource> MapToResource(IEnumerable<Core.Movies.Movie> movies)
         {
             foreach (var currentMovie in movies)
             {

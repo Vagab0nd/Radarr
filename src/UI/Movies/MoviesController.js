@@ -10,23 +10,22 @@ module.exports = NzbDroneController.extend({
 		_originalInit : NzbDroneController.prototype.initialize,
 
 		initialize : function() {
-				this.route('', this.series);
-				this.route('movies', this.series);
-				this.route('movies/:query', this.seriesDetails);
+				this.route('', this.movies);
+				this.route('movies', this.movies);
+				this.route('movies/:query', this.movieDetails);
 
 				this._originalInit.apply(this, arguments);
 		},
 
-		series : function() {
+		movies : function() {
 				this.setTitle('Movies');
 				this.showMainRegion(new MoviesIndexLayout());
 		},
 
-		seriesDetails : function(query) {
+		movieDetails : function(query) {
 
 			if(FullMovieCollection.length > 0) {
 				this._renderMovieDetails(query);
-				//debugger;
 			} else {
 				var self = this;
 				$.getJSON(window.NzbDrone.ApiRoot + '/movie/titleslug/'+query, { }, function(data) {
@@ -34,7 +33,6 @@ module.exports = NzbDroneController.extend({
 						self._renderMovieDetails(query);
 					});
 				this.listenTo(FullMovieCollection, 'sync', function(model, options) {
-					//debugger;
 					this._renderMovieDetails(query);
 				});
 			}

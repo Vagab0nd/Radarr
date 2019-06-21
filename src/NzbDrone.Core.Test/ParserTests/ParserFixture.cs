@@ -1,5 +1,6 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using NUnit.Framework;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Test.Framework;
 
@@ -22,45 +23,12 @@ namespace NzbDrone.Core.Test.ParserTests
          * Constantine S1-E1-WEB-DL-1080p-NZBgeek
          */
 
-        [TestCase("Chuck - 4x05 - Title", "Chuck")]
-        [TestCase("Law & Order - 4x05 - Title", "laworder")]
-        [TestCase("Bad Format", "badformat")]
-        [TestCase("Mad Men - Season 1 [Bluray720p]", "madmen")]
-        [TestCase("Mad Men - Season 1 [Bluray1080p]", "madmen")]
-        [TestCase("The Daily Show With Jon Stewart -", "thedailyshowwithjonstewart")]
-        [TestCase("The Venture Bros. (2004)", "theventurebros2004")]
-        [TestCase("Castle (2011)", "castle2011")]
-        [TestCase("Adventure Time S02 720p HDTV x264 CRON", "adventuretime")]
-        [TestCase("Hawaii Five 0", "hawaiifive0")]
-        [TestCase("Match of the Day", "matchday")]
-        [TestCase("Match of the Day 2", "matchday2")]
-        [TestCase("[ www.Torrenting.com ] - Revenge.S03E14.720p.HDTV.X264-DIMENSION", "Revenge")]
-        [TestCase("Seed S02E09 HDTV x264-2HD [eztv]-[rarbg.com]", "Seed")]
-        [TestCase("Reno.911.S01.DVDRip.DD2.0.x264-DEEP", "Reno 911")]
-        public void should_parse_series_name(string postTitle, string title)
-        {
-            var result = Parser.Parser.ParseSeriesName(postTitle).CleanSeriesTitle();
-            result.Should().Be(title.CleanSeriesTitle());
-        }
-
         [Test]
         public void should_remove_accents_from_title()
         {
             const string title = "Carniv\u00E0le";
-            
+
             title.CleanSeriesTitle().Should().Be("carnivale");
-        }
-
-        [TestCase("Discovery TV - Gold Rush : 02 Road From Hell [S04].mp4")]
-        public void should_clean_up_invalid_path_characters(string postTitle)
-        {
-            Parser.Parser.ParseTitle(postTitle);
-        }
-
-        [TestCase("[scnzbefnet][509103] 2.Broke.Girls.S03E18.720p.HDTV.X264-DIMENSION", "2 Broke Girls")]
-        public void should_remove_request_info_from_title(string postTitle, string title)
-        {
-            Parser.Parser.ParseTitle(postTitle).SeriesTitle.Should().Be(title);
         }
 
         //Note: This assumes extended language parser is activated
@@ -75,7 +43,8 @@ namespace NzbDrone.Core.Test.ParserTests
 		[TestCase("To.Live.and.Die.in.L.A.1985.1080p.BluRay", "To Live and Die in L.A.")]
 		[TestCase("A.I.Artificial.Intelligence.(2001)", "A.I. Artificial Intelligence")]
 		[TestCase("A.Movie.Name.(1998)", "A Movie Name")]
-		[TestCase("Thor: The Dark World 2013", "Thor The Dark World")]
+        [TestCase("www.Torrenting.com - Revenge.2008.720p.X264-DIMENSION", "Revenge")]
+        [TestCase("Thor: The Dark World 2013", "Thor The Dark World")]
         [TestCase("Resident.Evil.The.Final.Chapter.2016", "Resident Evil The Final Chapter")]
         [TestCase("Der.Soldat.James.German.Bluray.FuckYou.Pso.Why.cant.you.follow.scene.rules.1998", "Der Soldat James")]
         [TestCase("Passengers.German.DL.AC3.Dubbed..BluRay.x264-PsO", "Passengers")]
@@ -84,7 +53,10 @@ namespace NzbDrone.Core.Test.ParserTests
         [TestCase("Mission Impossible: Rogue Nation (2015)�[XviD - Ita Ac3 - SoftSub Ita]azione, spionaggio, thriller *Prima Visione* Team mulnic Tom Cruise", "Mission Impossible Rogue Nation")]
 		[TestCase("Scary.Movie.2000.FRENCH..BluRay.-AiRLiNE", "Scary Movie")]
 		[TestCase("My Movie 1999 German Bluray", "My Movie")]
-		public void should_parse_movie_title(string postTitle, string title)
+        [TestCase("Leaving Jeruselem by Railway (1897) [DVD].mp4", "Leaving Jeruselem by Railway")]
+        [TestCase("Climax.2018.1080p.AMZN.WEB-DL.DD5.1.H.264-NTG", "Climax")]
+        [TestCase("Movie.Title.Imax.2018.1080p.AMZN.WEB-DL.DD5.1.H.264-NTG", "Movie Title")]
+        public void should_parse_movie_title(string postTitle, string title)
 		{
 		    Parser.Parser.ParseMovieTitle(postTitle, true).MovieTitle.Should().Be(title);
         }
@@ -98,16 +70,10 @@ namespace NzbDrone.Core.Test.ParserTests
         [TestCase("1941.1979.EXTENDED.720p.BluRay.X264-AMIABLE", 1979)]
         [TestCase("Valana la Legende FRENCH BluRay 720p 2016 kjhlj", 2016)]
         [TestCase("Der.Soldat.James.German.Bluray.FuckYou.Pso.Why.cant.you.follow.scene.rules.1998", 1998)]
+        [TestCase("Leaving Jeruselem by Railway (1897) [DVD].mp4", 1897)]
         public void should_parse_movie_year(string postTitle, int year)
 		{
 			Parser.Parser.ParseMovieTitle(postTitle, false).Year.Should().Be(year);
-		}
-
-		[TestCase("The Danish Girl 2015")]
-        [TestCase("The.Danish.Girl.2015.1080p.BluRay.x264.DTS-HD.MA.5.1-RARBG")]
-		public void should_not_parse_language_in_movie_title(string postTitle)
-		{
-			Parser.Parser.ParseMovieTitle(postTitle, false).Language.Should().Be(Language.English);
 		}
 
         [TestCase("Prometheus 2012 Directors Cut", "Directors Cut")]
@@ -147,9 +113,15 @@ namespace NzbDrone.Core.Test.ParserTests
         [TestCase("My.Movie.GERMAN.Extended.Cut.2016", "Extended Cut")]
         [TestCase("My.Movie.GERMAN.Extended.Cut", "Extended Cut")]
         [TestCase("Mission Impossible: Rogue Nation 2012 Bluray", "")]
+        [TestCase("Loving.Pablo.2018.TS.FRENCH.MD.x264-DROGUERiE","")]
         public void should_parse_edition(string postTitle, string edition)
         {
-            Parser.Parser.ParseMovieTitle(postTitle, true).Edition.Should().Be(edition);
+            var parsed = Parser.Parser.ParseMovieTitle(postTitle, true);
+            if (parsed.Edition.IsNullOrWhiteSpace())
+            {
+                parsed.Edition = Parser.Parser.ParseEdition(parsed.SimpleReleaseTitle);
+            }
+            parsed.Edition.Should().Be(edition);
         }
 
         [TestCase("The Lord of the Rings The Fellowship of the Ring (Extended Edition) 1080p BD25", "The Lord Of The Rings The Fellowship Of The Ring", "Extended Edition")]
@@ -157,6 +129,16 @@ namespace NzbDrone.Core.Test.ParserTests
         public void should_parse_edition_lenient_mapping(string postTitle, string foundTitle, string edition)
         {
             Parser.Parser.ParseMinimalMovieTitle(postTitle, foundTitle, 1290).Edition.Should().Be(edition);
+        }
+
+        [TestCase("123", "tt0000123")]
+        [TestCase("1234567", "tt1234567")]
+        [TestCase("tt1234567", "tt1234567")]
+        [TestCase("tt12345678", "tt12345678")]
+        [TestCase("12345678", "tt12345678")]
+        public void should_normalize_imdbid(string imdbid, string normalized)
+        {
+            Parser.Parser.NormalizeImdbId(imdbid).Should().BeEquivalentTo(normalized);
         }
     }
 }

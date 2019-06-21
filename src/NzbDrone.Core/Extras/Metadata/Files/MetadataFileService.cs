@@ -2,7 +2,7 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Extras.Files;
 using NzbDrone.Core.MediaFiles;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Extras.Metadata.Files
 {
@@ -16,7 +16,5 @@ namespace NzbDrone.Core.Extras.Metadata.Files
             : base(repository, movieService, diskProvider, recycleBinProvider, logger)
         {
         }
-
-        public override bool PermanentlyDelete => true;
     }
 }

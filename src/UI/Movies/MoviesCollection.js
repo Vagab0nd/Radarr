@@ -30,6 +30,10 @@ var filterModes = {
         'monitored',
         true
     ],
+    'unmonitored'  : [
+        'monitored',
+        false
+    ],
     'missing'  : [
         'downloaded',
         false
@@ -171,7 +175,7 @@ var Collection = PageableCollection.extend({
 
     sortMappings : {
         movie : {
-            sortKey : 'series.sortTitle'
+            sortKey : 'movie.sortTitle'
         },
         title : {
             sortKey : 'sortTitle'
@@ -222,14 +226,6 @@ var Collection = PageableCollection.extend({
             return 0;
           }
         },
-        percentOfEpisodes : {
-            sortValue : function(model, attr) {
-                var percentOfEpisodes = model.get(attr);
-                var episodeCount = model.get('episodeCount');
-
-                return percentOfEpisodes + episodeCount / 1000000;
-            }
-        },
         inCinemas : {
 
           sortValue : function(model, attr) {
@@ -265,6 +261,10 @@ var Collection = PageableCollection.extend({
       this.fetch();
     },
 
+    isFiltered : function() {
+        return this.state.filterKey && this.state.filterKey !== 'all';
+    },
+
     comparator: function (model) {
 		return model.get('sortTitle');
     }
@@ -274,7 +274,7 @@ Collection = AsFilteredCollection.call(Collection);
 Collection = AsSortedCollection.call(Collection);
 Collection = AsPersistedStateCollection.call(Collection);
 
-var filterMode = Config.getValue("series.filterMode", "all");
+var filterMode = Config.getValue("movie.filterMode", "all");
 var sortKey = Config.getValue("movie.sortKey", "sortTitle");
 var sortDir = Config.getValue("movie.sortDirection", -1);
 var sortD = "asc";

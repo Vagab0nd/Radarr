@@ -1,4 +1,4 @@
-﻿﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -12,7 +12,7 @@ using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MetadataSource.SkyHook.Resource;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.MetadataSource.PreDB;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 using System.Threading;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Profiles;
@@ -24,12 +24,11 @@ using NzbDrone.Core.MetadataSource.RadarrAPI;
 
 namespace NzbDrone.Core.MetadataSource.SkyHook
 {
-    public class SkyHookProxy : IProvideSeriesInfo, ISearchForNewSeries, IProvideMovieInfo, ISearchForNewMovie, IDiscoverNewMovies
+    public class SkyHookProxy : IProvideMovieInfo, ISearchForNewMovie, IDiscoverNewMovies
     {
         private readonly IHttpClient _httpClient;
         private readonly Logger _logger;
-
-        private readonly IHttpRequestBuilderFactory _requestBuilder;
+        
         private readonly IHttpRequestBuilderFactory _movieBuilder;
         private readonly ITmdbConfigService _configService;
         private readonly IMovieService _movieService;
@@ -38,13 +37,10 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
         private readonly IAlternativeTitleService _altTitleService;
         private readonly IRadarrAPIClient _radarrAPI;
 
-        private readonly IHttpRequestBuilderFactory _apiBuilder;
-
-        public SkyHookProxy(IHttpClient httpClient, ISonarrCloudRequestBuilder requestBuilder, ITmdbConfigService configService, IMovieService movieService,
+        public SkyHookProxy(IHttpClient httpClient, IRadarrCloudRequestBuilder requestBuilder, ITmdbConfigService configService, IMovieService movieService,
                             IPreDBService predbService, IImportExclusionsService exclusionService, IAlternativeTitleService altTitleService, IRadarrAPIClient radarrAPI, Logger logger)
         {
             _httpClient = httpClient;
-             _requestBuilder = requestBuilder.SkyHookTvdb;
             _movieBuilder = requestBuilder.TMDB;
             _configService = configService;
             _movieService = movieService;
@@ -56,39 +52,9 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             _logger = logger;
         }
 
-        public Tuple<Series, List<Episode>> GetSeriesInfo(int tvdbSeriesId)
-        {
-            var httpRequest = _requestBuilder.Create()
-                                             .SetSegment("route", "shows")
-                                             .Resource(tvdbSeriesId.ToString())
-                                             .Build();
-
-            httpRequest.AllowAutoRedirect = true;
-            httpRequest.SuppressHttpError = true;
-
-            var httpResponse = _httpClient.Get<ShowResource>(httpRequest);
-
-            if (httpResponse.HasHttpError)
-            {
-                if (httpResponse.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new SeriesNotFoundException(tvdbSeriesId);
-                }
-                else
-                {
-                    throw new HttpException(httpRequest, httpResponse);
-                }
-            }
-
-            var episodes = httpResponse.Resource.Episodes.Select(MapEpisode);
-            var series = MapSeries(httpResponse.Resource);
-
-            return new Tuple<Series, List<Episode>>(series, episodes.ToList());
-        }
-
         public Movie GetMovieInfo(int TmdbId, Profile profile = null, bool hasPreDBEntry = false)
         {
-            var langCode = profile != null ? IsoLanguages.Get(profile.Language).TwoLetterCode : "en";
+            var langCode = profile != null ? IsoLanguages.Get(profile.Language)?.TwoLetterCode ?? "en" : "en";
 
             var request = _movieBuilder.Create()
                .SetSegment("route", "movie")
@@ -100,9 +66,13 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
                .Build();
 
             request.AllowAutoRedirect = true;
-            // request.SuppressHttpError = true;
+            request.SuppressHttpError = true;
 
             var response = _httpClient.Get<MovieResourceRoot>(request);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                throw new MovieNotFoundException("Movie not found.");
+            }
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 throw new HttpException(request, response);
@@ -146,7 +116,7 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
 			    {
 			        altTitles.Add(new AlternativeTitle(resource.original_title, SourceType.TMDB, TmdbId, iso.Language));
 			    }
-			    
+
 				//movie.AlternativeTitles.Add(resource.original_title);
 			}
 
@@ -166,7 +136,7 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             movie.ImdbId = resource.imdb_id;
             movie.Title = resource.title;
             movie.TitleSlug = Parser.Parser.ToUrlSlug(resource.title);
-            movie.CleanTitle = Parser.Parser.CleanSeriesTitle(resource.title);
+            movie.CleanTitle = resource.title.CleanSeriesTitle();
             movie.SortTitle = Parser.Parser.NormalizeTitle(resource.title);
             movie.Overview = resource.overview;
             movie.Website = resource.homepage;
@@ -190,7 +160,7 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             movie.TitleSlug += "-" + movie.TmdbId.ToString();
 
             movie.Images.Add(_configService.GetCoverForURL(resource.poster_path, MediaCoverTypes.Poster));//TODO: Update to load image specs from tmdb page!
-            movie.Images.Add(_configService.GetCoverForURL(resource.backdrop_path, MediaCoverTypes.Banner));
+            movie.Images.Add(_configService.GetCoverForURL(resource.backdrop_path, MediaCoverTypes.Fanart));
             movie.Runtime = resource.runtime;
 
             //foreach(Title title in resource.alternative_titles.titles)
@@ -236,17 +206,17 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             //omdbapi is actually quite good for this info
             //except omdbapi has been having problems recently
             //so i will just leave this in as a comment
-            //and use the 3 month logic that we were using before           
+            //and use the 3 month logic that we were using before
             /*var now = DateTime.Now;
             if (now < movie.InCinemas)
                 movie.Status = MovieStatusType.Announced;
-            if (now >= movie.InCinemas) 
+            if (now >= movie.InCinemas)
                 movie.Status = MovieStatusType.InCinemas;
             if (now >= movie.PhysicalRelease)
                 movie.Status = MovieStatusType.Released;
             */
 
-            
+
             var now = DateTime.Now;
             //handle the case when we have both theatrical and physical release dates
             if (movie.InCinemas.HasValue && movie.PhysicalRelease.HasValue)
@@ -281,7 +251,7 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             }
 
 			if (!hasPreDBEntry)
-			{ 
+			{
 				if (_predbService.HasReleases(movie))
 				{
 					movie.HasPreDBEntry = true;
@@ -406,7 +376,7 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
                 _logger.Error(exception, "Failed to discover movies for action {0}!", action);
             }
 
-            return results.SelectList(MapMovie);       
+            return results.SelectList(MapMovie);
         }
 
         private string StripTrailingTheFromTitle(string title)
@@ -439,10 +409,18 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
                 {
                     yearTerm = parserResult.Year.ToString();
                 }
-                
+
                 if (parserResult.ImdbId.IsNotNullOrWhiteSpace())
                 {
-                    return new List<Movie> { GetMovieInfo(parserResult.ImdbId) };
+                    try
+                    {
+                        return new List<Movie> { GetMovieInfo(parserResult.ImdbId) };
+                    }
+                    catch (Exception e)
+                    {
+                        return new List<Movie>();
+                    }
+
                 }
             }
 
@@ -463,7 +441,28 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
                 {
                     return new List<Movie> { GetMovieInfo(imdbid) };
                 }
-                catch (SeriesNotFoundException)
+                catch (MovieNotFoundException)
+                {
+                    return new List<Movie>();
+                }
+            }
+
+            if (lowerTitle.StartsWith("tmdb:") || lowerTitle.StartsWith("tmdbid:"))
+            {
+                var slug = lowerTitle.Split(':')[1].Trim();
+
+                int tmdbid = -1;
+
+                if (slug.IsNullOrWhiteSpace() || slug.Any(char.IsWhiteSpace) || !(int.TryParse(slug, out tmdbid)))
+                {
+                    return new List<Movie>();
+                }
+
+                try
+                {
+                    return new List<Movie> { GetMovieInfo(tmdbid) };
+                }
+                catch (MovieNotFoundException)
                 {
                     return new List<Movie>();
                 }
@@ -506,57 +505,6 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             var movieResults = response.Resource.results;
 
             return movieResults.SelectList(MapMovie);
-        }
-
-        public List<Series> SearchForNewSeries(string title)
-        {
-            try
-            {
-                var lowerTitle = title.ToLowerInvariant();
-
-                if (lowerTitle.StartsWith("tvdb:") || lowerTitle.StartsWith("tvdbid:"))
-                {
-                    var slug = lowerTitle.Split(':')[1].Trim();
-
-                    int tvdbId;
-
-                    if (slug.IsNullOrWhiteSpace() || slug.Any(char.IsWhiteSpace) || !int.TryParse(slug, out tvdbId) || tvdbId <= 0)
-                    {
-                        return new List<Series>();
-                    }
-
-                    try
-                    {
-                        return new List<Series> { GetSeriesInfo(tvdbId).Item1 };
-                    }
-                    catch (SeriesNotFoundException)
-                    {
-                        return new List<Series>();
-                    }
-                }
-
-               
-
-                var httpRequest = _requestBuilder.Create()
-                                                 .SetSegment("route", "search")
-                                                 .AddQueryParam("term", title.ToLower().Trim())
-                                                 .Build();
-
-                
-
-                var httpResponse = _httpClient.Get<List<ShowResource>>(httpRequest);
-
-                return httpResponse.Resource.SelectList(MapSeries);
-            }
-            catch (HttpException)
-            {
-                throw new SkyHookException("Search for '{0}' failed. Unable to communicate with SkyHook.", title);
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn(ex, ex.Message);
-                throw new SkyHookException("Search for '{0}' failed. Invalid response received from SkyHook.", title);
-            }
         }
 
         public Movie MapMovie(MovieResult result)
@@ -661,63 +609,6 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             return null;
         }
 
-        private static Series MapSeries(ShowResource show)
-        {
-            var series = new Series();
-            series.TvdbId = show.TvdbId;
-
-            if (show.TvRageId.HasValue)
-            {
-                series.TvRageId = show.TvRageId.Value;
-            }
-
-            if (show.TvMazeId.HasValue)
-            {
-                series.TvMazeId = show.TvMazeId.Value;
-            }
-
-            series.ImdbId = show.ImdbId;
-            series.Title = show.Title;
-            series.CleanTitle = Parser.Parser.CleanSeriesTitle(show.Title);
-            series.SortTitle = SeriesTitleNormalizer.Normalize(show.Title, show.TvdbId);
-
-            if (show.FirstAired != null)
-            {
-                series.FirstAired = DateTime.Parse(show.FirstAired).ToUniversalTime();
-                series.Year = series.FirstAired.Value.Year;
-            }
-
-            series.Overview = show.Overview;
-
-            if (show.Runtime != null)
-            {
-                series.Runtime = show.Runtime.Value;
-            }
-
-            series.Network = show.Network;
-
-            if (show.TimeOfDay != null)
-            {
-                series.AirTime = string.Format("{0:00}:{1:00}", show.TimeOfDay.Hours, show.TimeOfDay.Minutes);
-            }
-
-            series.TitleSlug = show.Slug;
-            series.Status = MapSeriesStatus(show.Status);
-            series.Ratings = MapRatings(show.Rating);
-            series.Genres = show.Genres;
-
-            if (show.ContentRating.IsNotNullOrWhiteSpace())
-            {
-                series.Certification = show.ContentRating.ToUpper();
-            }
-            
-            series.Actors = show.Actors.Select(MapActors).ToList();
-            series.Seasons = show.Seasons.Select(MapSeason).ToList();
-            series.Images = show.Images.Select(MapImage).ToList();
-
-            return series;
-        }
-
         private static Actor MapActors(ActorResource arg)
         {
             var newActor = new Actor
@@ -735,48 +626,6 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             }
 
             return newActor;
-        }
-
-        private static Episode MapEpisode(EpisodeResource oracleEpisode)
-        {
-            var episode = new Episode();
-            episode.Overview = oracleEpisode.Overview;
-            episode.SeasonNumber = oracleEpisode.SeasonNumber;
-            episode.EpisodeNumber = oracleEpisode.EpisodeNumber;
-            episode.AbsoluteEpisodeNumber = oracleEpisode.AbsoluteEpisodeNumber;
-            episode.Title = oracleEpisode.Title;
-
-            episode.AirDate = oracleEpisode.AirDate;
-            episode.AirDateUtc = oracleEpisode.AirDateUtc;
-
-            episode.Ratings = MapRatings(oracleEpisode.Rating);
-
-            //Don't include series fanart images as episode screenshot
-            if (oracleEpisode.Image != null)
-            {
-                episode.Images.Add(new MediaCover.MediaCover(MediaCoverTypes.Screenshot, oracleEpisode.Image));
-            }
-
-            return episode;
-        }
-
-        private static Season MapSeason(SeasonResource seasonResource)
-        {
-            return new Season
-            {
-                SeasonNumber = seasonResource.SeasonNumber,
-                Images = seasonResource.Images.Select(MapImage).ToList()
-            };
-        }
-
-        private static SeriesStatusType MapSeriesStatus(string status)
-        {
-            if (status.Equals("ended", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return SeriesStatusType.Ended;
-            }
-
-            return SeriesStatusType.Continuing;
         }
 
         private static Ratings MapRatings(RatingResource rating)
@@ -852,6 +701,7 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
 	            newMovie.Monitored = movie.Monitored;
 	            newMovie.MovieFile = movie.MovieFile;
 	            newMovie.MinimumAvailability = movie.MinimumAvailability;
+	            newMovie.Tags = movie.Tags;
 
 	            return newMovie;
 			}

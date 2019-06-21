@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
@@ -8,7 +8,7 @@ using NzbDrone.Core.History;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Test.Framework;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 using NzbDrone.Core.Indexers;
 using System.Linq;
 
@@ -17,6 +17,11 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
     [TestFixture]
     public class TrackedDownloadServiceFixture : CoreTest<TrackedDownloadService>
     {
+        [SetUp]
+        public void Setup()
+        {
+        }
+
         private void GivenDownloadHistory()
         {
             Mocker.GetMock<IHistoryService>()
@@ -25,8 +30,6 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
                  new History.History(){
                      DownloadId = "35238",
                      SourceTitle = "TV Series S01",
-                     SeriesId = 5,
-                     EpisodeId = 4,
 					 MovieId = 3,
                  }
                 });
@@ -40,7 +43,7 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
             var remoteEpisode = new RemoteMovie
             {
                 Movie = new Movie() { Id = 3 },
-           
+
                 ParsedMovieInfo = new ParsedMovieInfo()
                 {
                     MovieTitle = "A Movie",
@@ -51,6 +54,8 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
             Mocker.GetMock<IParsingService>()
                   .Setup(s => s.Map(It.Is<ParsedMovieInfo>(i => i.MovieTitle == "A Movie"), It.IsAny<string>(), null))
                   .Returns(new MappingResult{RemoteMovie = remoteEpisode});
+
+            ParseMovieTitle();
 
             var client = new DownloadClientDefinition()
             {
@@ -72,6 +77,6 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
 			trackedDownload.RemoteMovie.Movie.Id.Should().Be(3);
         }
 
-        
+
     }
 }

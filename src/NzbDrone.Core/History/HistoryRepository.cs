@@ -5,7 +5,7 @@ using Marr.Data.QGen;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Qualities;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.History
 {
@@ -15,6 +15,7 @@ namespace NzbDrone.Core.History
         History MostRecentForDownloadId(string downloadId);
         List<History> FindByDownloadId(string downloadId);
         List<History> FindDownloadHistory(int idMovieId, QualityModel quality);
+        List<History> FindByMovieId(int movieId);
         void DeleteForMovie(int movieId);
         History MostRecentForMovie(int movieId);
     }
@@ -29,32 +30,37 @@ namespace NzbDrone.Core.History
 
         public List<QualityModel> GetBestQualityInHistory(int movieId)
         {
-            var history = Query.Where(c => c.MovieId == movieId);
+            var history = Query(q => q.Where(c => c.MovieId == movieId).ToList());
 
             return history.Select(h => h.Quality).ToList();
         }
 
         public History MostRecentForDownloadId(string downloadId)
         {
-            return Query.Where(h => h.DownloadId == downloadId)
+            return Query(q => q.Where(h => h.DownloadId == downloadId)
              .OrderByDescending(h => h.Date)
-             .FirstOrDefault();
+             .FirstOrDefault());
         }
 
         public List<History> FindByDownloadId(string downloadId)
         {
-            return Query.Where(h => h.DownloadId == downloadId);
+            return Query(q => q.Where(h => h.DownloadId == downloadId).ToList());
         }
 
         public List<History> FindDownloadHistory(int idMovieId, QualityModel quality)
         {
-            return Query.Where(h =>
+            return Query(q => q.Where(h =>
                  h.MovieId == idMovieId &&
                  h.Quality == quality &&
                  (h.EventType == HistoryEventType.Grabbed ||
                  h.EventType == HistoryEventType.DownloadFailed ||
                  h.EventType == HistoryEventType.DownloadFolderImported)
-                 ).ToList();
+                 ).ToList());
+        }
+
+        public List<History> FindByMovieId(int movieId)
+        {
+            return Query(q => q.Where(h => h.MovieId == movieId).ToList());
         }
 
         public void DeleteForMovie(int movieId)
@@ -64,20 +70,16 @@ namespace NzbDrone.Core.History
 
         protected override SortBuilder<History> GetPagedQuery(QueryBuilder<History> query, PagingSpec<History> pagingSpec)
         {
-            var baseQuery = query/*.Join<History, Series>(JoinType.Inner, h => h.Series, (h, s) => h.SeriesId == s.Id)
-                                 .Join<History, Episode>(JoinType.Inner, h => h.Episode, (h, e) => h.EpisodeId == e.Id)*/
-                                 .Join<History, Movie>(JoinType.Inner, h => h.Movie, (h, e) => h.MovieId == e.Id);
-
-
+            var baseQuery = query.Join<History, Movie>(JoinType.Inner, h => h.Movie, (h, e) => h.MovieId == e.Id);
 
             return base.GetPagedQuery(baseQuery, pagingSpec);
         }
 
         public History MostRecentForMovie(int movieId)
         {
-            return Query.Where(h => h.MovieId == movieId)
+            return Query(q => q.Where(h => h.MovieId == movieId)
                         .OrderByDescending(h => h.Date)
-                        .FirstOrDefault();
+                        .FirstOrDefault());
         }
     }
 }

@@ -6,6 +6,7 @@ var EmptyView = require('../Index/EmptyView');
 var FullMovieCollection = require ('../FullMovieCollection');
 var MoviesCollection = require('../MoviesCollection');
 var MovieTitleCell = require('../../Cells/MovieTitleCell');
+var MovieMonitoredCell = require('../../Cells/ToggleCell');
 var DownloadedQualityCell = require('../../Cells/DownloadedQualityCell');
 var ProfileCell = require('../../Cells/ProfileCell');
 var SelectAllCell = require('../../Cells/SelectAllCell');
@@ -15,13 +16,14 @@ var GridPager = require('../../Shared/Grid/Pager');
 require('../../Mixins/backbone.signalr.mixin');
 var DeleteSelectedView = require('./Delete/DeleteSelectedView');
 var Config = require('../../Config');
+var CommandController = require('../../Commands/CommandController');
 
 window.shownOnce = false;
 module.exports = Marionette.Layout.extend({
     template : 'Movies/Editor/MovieEditorLayoutTemplate',
 
     regions : {
-        seriesRegion : '#x-series-editor',
+        moviesRegion : '#x-movie-editor',
         toolbar      : '#x-toolbar',
         pagerTop : "#x-movie-pager-top",
         pager : "#x-movie-pager"
@@ -44,6 +46,15 @@ module.exports = Marionette.Layout.extend({
             name       : '',
             cell       : SelectAllCell,
             headerCell : 'select-all',
+            sortable   : false
+        },
+        {
+            name       : 'monitored',
+            label      : '',
+            cell       : MovieMonitoredCell,
+            trueClass  : 'icon-radarr-monitored',
+            falseClass : 'icon-radarr-unmonitored',
+            tooltip    : 'Toggle movie monitored status',
             sortable   : false
         },
         {
@@ -101,10 +112,16 @@ module.exports = Marionette.Layout.extend({
                 items      : [
                 {
                     title          : 'Update library',
-                    icon           : 'icon-sonarr-refresh',
+                    icon           : 'icon-radarr-refresh',
                     command        : 'refreshmovie',
                     successMessage : 'Library was updated!',
                     errorMessage   : 'Library update failed!'
+                },
+                {
+                    title : 'Update Custom Formats',
+                    icon : 'icon-radarr-refresh',
+                    className : 'btn-danger',
+                    callback : this._updateQuality
                 },
                 {
                     title : 'Delete selected',
@@ -114,13 +131,13 @@ module.exports = Marionette.Layout.extend({
                 },
 				{
                     title : 'Select All',
-                    icon : 'icon-sonarr-checked',
+                    icon : 'icon-radarr-checked',
                     className: 'btn-primary',
                     callback : this._selectAll
                 },
 				{
                     title : 'Unselect All',
-                    icon : 'icon-sonarr-unchecked',
+                    icon : 'icon-radarr-unchecked',
                     className: 'btn-primary',
                     callback : this._unselectAll
                 }
@@ -133,49 +150,56 @@ module.exports = Marionette.Layout.extend({
         this.filteringOptions = {
             type          : 'radio',
             storeState    : false,
-            menuKey       : 'serieseditor.filterMode',
+            menuKey       : 'movieeditor.filterMode',
             defaultAction : 'all',
             items         : [
                 {
                     key      : 'all',
                     title    : '',
                     tooltip  : 'All',
-                    icon     : 'icon-sonarr-all',
+                    icon     : 'icon-radarr-all',
                     callback : this._setFilter
                 },
                 {
                     key      : 'monitored',
                     title    : '',
                     tooltip  : 'Monitored Only',
-                    icon     : 'icon-sonarr-monitored',
+                    icon     : 'icon-radarr-monitored',
                     callback : this._setFilter
                 },
-		                {
+                {
+                    key      : 'unmonitored',
+                    title    : '',
+                    tooltip  : 'UnMonitored Only',
+                    icon     : 'icon-radarr-unmonitored',
+                    callback : this._setFilter
+                },
+		        {
                     key      : 'missing',
                     title    : '',
                     tooltip  : 'Missing Only',
-                    icon     : 'icon-sonarr-missing',
+                    icon     : 'icon-radarr-missing',
                     callback : this._setFilter
                 },
                 {
                     key      : 'released',
                     title    : '',
                     tooltip  : 'Released',
-                    icon     : 'icon-sonarr-movie-released',
+                    icon     : 'icon-radarr-movie-released',
                     callback : this._setFilter
                 },
                 {
                     key      : 'announced',
                     title    : '',
                     tooltip  : 'Announced',
-                    icon     : 'icon-sonarr-movie-announced',
+                    icon     : 'icon-radarr-movie-announced',
                     callback : this._setFilter
                 },
                 {
                     key      : 'cinemas',
                     title    : '',
                     tooltip  : 'In Cinemas',
-                    icon     : 'icon-sonarr-movie-cinemas',
+                    icon     : 'icon-radarr-movie-cinemas',
                     callback : this._setFilter
                 }
             ]
@@ -211,7 +235,7 @@ module.exports = Marionette.Layout.extend({
 
     _showTable : function() {
         if (this.movieCollection.length === 0) {
-            this.seriesRegion.show(new EmptyView());
+            this.moviesRegion.show(new EmptyView());
             this.toolbar.close();
             return;
         }
@@ -223,7 +247,7 @@ module.exports = Marionette.Layout.extend({
             className  : 'table table-hover'
         });
 
-        this.seriesRegion.show(this.editorGrid);
+        this.moviesRegion.show(this.editorGrid);
        	this._showFooter();
 
     },
@@ -279,6 +303,20 @@ module.exports = Marionette.Layout.extend({
 	        });
 		    this.movieCollection.setPageSize(pageSize, {fetch: false});
 		    this.movieCollection.getPage(currentPage, {fetch: false});
-	}
+	},
+
+    _updateQuality : function() {
+        var selected = FullMovieCollection.where({ selected : true});
+        var files = selected.filter(function(model) {
+            return model.get("movieFile") !== undefined;
+        }).map(function(model){
+            return model.get("movieFile").id;
+        });
+        
+        CommandController.Execute('updateMovieFileQuality', {
+            name : 'updateMovieFileQuality',
+            movieFileIds : files
+        });
+    }
 	
 });

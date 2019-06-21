@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,7 +12,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Extras.Metadata.Files;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MediaFiles;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Extras.Metadata.Consumers.Wdtv
 {
@@ -129,7 +129,7 @@ namespace NzbDrone.Core.Extras.Metadata.Consumers.Wdtv
             return new MetadataFileResult(filename, xmlResult.Trim(Environment.NewLine.ToCharArray()));
         }
 
-        public override List<ImageFileResult> MovieImages(Movie movie, MovieFile moviefile)
+        public override List<ImageFileResult> MovieImages(Movie movie)
         {
             if (!Settings.MovieImages)
             {

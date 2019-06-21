@@ -6,6 +6,8 @@ Radarr is an __independent__ fork of [Sonarr](https://github.com/Sonarr/Sonarr) 
 
 The project was inspired by other Usenet/BitTorrent movie downloaders such as CouchPotato.
 
+See the [Roadmap blogpost](https://blog.radarr.video/development/update/2018/11/11/roadmap-update.html) for an overview of planned features.
+
 ## Getting Started
 
 [![Installation](https://img.shields.io/badge/wiki-installation-brightgreen.svg?maxAge=60&style=flat-square)](https://github.com/Radarr/Radarr/wiki/Installation)
@@ -20,15 +22,18 @@ The project was inspired by other Usenet/BitTorrent movie downloaders such as Co
 
 ## Downloads
 
-[![GitHub Releases](https://img.shields.io/badge/downloads-releases-brightgreen.svg?maxAge=60&style=flat-square)](https://github.com/Radarr/Radarr/releases)
-[![AppVeyor Builds](https://img.shields.io/badge/downloads-continuous-green.svg?maxAge=60&style=flat-square)](https://ci.appveyor.com/project/galli-leo/radarr-usby1/branch/develop/artifacts)
+Branch | develop (stable) | nightly (semi-unstable) |
+---|---|---
+Binary Releases | [![GitHub Releases](https://img.shields.io/badge/downloads-releases-brightgreen.svg?maxAge=60&style=flat-square)](https://github.com/Radarr/Radarr/releases) | [![AppVeyor Builds](https://img.shields.io/badge/downloads-continuous-green.svg?maxAge=60&style=flat-square)](https://ci.appveyor.com/project/galli-leo/radarr-usby1/branch/develop/artifacts)
+Docker (linuxserver.io, x86_64, arm64, armhf) | [![Docker release](https://img.shields.io/badge/linuxserver-radarr:latest-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://store.docker.com/community/images/linuxserver/radarr)  | [![Docker nightly](https://img.shields.io/badge/linuxserver-radarr:nightly-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://store.docker.com/community/images/linuxserver/radarr) 
+Docker (hotio, see [here](https://github.com/hotio/docker-radarr) for more information) | [![Docker release / nightly](https://img.shields.io/badge/docker-release/nightly-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://hub.docker.com/r/hotio/radarr) | [![Docker release / nightly](https://img.shields.io/badge/docker-release/nightly-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://hub.docker.com/r/hotio/radarr)
 
-[![Docker release](https://img.shields.io/badge/docker-release-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://store.docker.com/community/images/linuxserver/radarr)
-[![Docker nightly](https://img.shields.io/badge/docker-release/nightly-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://store.docker.com/community/images/hotio/suitarr)
-[![Docker armhf](https://img.shields.io/badge/docker-armhf-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://store.docker.com/community/images/lsioarmhf/radarr)
-[![Docker aarch64](https://img.shields.io/badge/docker-aarch64-blue.svg?colorB=1488C6&maxAge=60&style=flat-square)](https://store.docker.com/community/images/lsioarmhf/radarr-aarch64)
 
 ## Support
+
+[![OpenCollective](https://opencollective.com/radarr/tiers/backer/badge.svg)](#backers)
+[![OpenCollective](https://opencollective.com/radarr/tiers/flexible-sponsor/badge.svg)](#flexible-sponsors)
+[![OpenCollective](https://opencollective.com/radarr/tiers/sponsor/badge.svg)](#sponsors)
 
 [![Discord](https://img.shields.io/badge/discord-chat-7289DA.svg?maxAge=60&style=flat-square)](https://discord.gg/AD3UP37)
 [![Reddit](https://img.shields.io/badge/reddit-discussion-FF4500.svg?maxAge=60&style=flat-square)](https://www.reddit.com/r/radarr)
@@ -42,8 +47,9 @@ The project was inspired by other Usenet/BitTorrent movie downloaders such as Co
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/radarr/radarr.svg?maxAge=60&style=flat-square)](https://github.com/Radarr/Radarr/pulls)
 [![GNU GPL v3](https://img.shields.io/badge/license-GNU%20GPL%20v3-blue.svg?maxAge=60&style=flat-square)](http://www.gnu.org/licenses/gpl.html)
 [![Copyright 2010-2017](https://img.shields.io/badge/copyright-2017-blue.svg?maxAge=60&style=flat-square)](https://github.com/Radarr/Radarr)
-[![Github Releases](https://img.shields.io/github/downloads/Radarr/Radarr/total.svg?maxAge=60&style=flat-square)](https://github.com/Radar/Radarr/releases/latest)
+[![Github Releases](https://img.shields.io/github/downloads/Radarr/Radarr/total.svg?maxAge=60&style=flat-square)](https://github.com/Radarr/Radarr/releases/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/linuxserver/radarr.svg?maxAge=60&style=flat-square)](https://hub.docker.com/r/linuxserver/radarr/)
+[![Changelog](https://img.shields.io/github/commit-activity/w/radarr/radarr.svg?style=flat-square)](/CHANGELOG.md#unreleased)
 
 | Service  | Master                      | Develop                      |
 |----------|:---------------------------:|:----------------------------:|
@@ -54,8 +60,8 @@ The project was inspired by other Usenet/BitTorrent movie downloaders such as Co
 
 | API | Updates | Sites  |
 |-------|:----:|:----:|
-| [![API V2](http://status.radarr.video/component/1/shield?style=flat-square)](https://api.radarr.video/v2/) | [![Update Server](http://status.radarr.video/component/4/shield?style=flat-square)](https://radarr.aeonlucid.com) | [![Radarr Mappings](http://status.radarr.video/component/6/shield?style=flat-square)](https://mappings.radarr.video/)
-| [![API Staging](http://status.radarr.video/component/2/shield?style=flat-square)](https://staging.api.radarr.video/) | [![Github Updates](http://status.radarr.video/component/5/shield?style=flat-square)](https://api.github.com/v3/) | [![Main Site](http://status.radarr.video/component/7/shield?style=flat-square)](https://radarr.video/)
+| [![API V2 (develop)](http://status.radarr.video/component/1/shield?style=flat-square)](https://api.radarr.video/v2/) | [![Update Server](http://status.radarr.video/component/4/shield?style=flat-square)](https://radarr.aeonlucid.com) | [![Radarr Mappings](http://status.radarr.video/component/6/shield?style=flat-square)](https://mappings.radarr.video/)
+| [![API Staging (nightly)](http://status.radarr.video/component/2/shield?style=flat-square)](https://staging.api.radarr.video/) | [![Github Updates](http://status.radarr.video/component/5/shield?style=flat-square)](https://api.github.com/v3/) | [![Main Site](http://status.radarr.video/component/7/shield?style=flat-square)](https://radarr.video/)
 
 Radarr is currently undergoing rapid development and pull requests are actively added into the repository.
 
@@ -82,17 +88,13 @@ Radarr is currently undergoing rapid development and pull requests are actively 
 * Importing movies from various online sources, such as IMDb Watchlists (A complete list can be found [here](https://github.com/Radarr/Radarr/issues/114))
 * Full integration with Kodi, Plex (notification, library update)
 * And a beautiful UI
+* Importing Metadata such as trailers or subtitles
+* Adding metadata such as posters and information for Kodi and others to use
+* Advanced customization for profiles, such that Radarr will always download the copy you want
 
 ### Planned Features
 
-* Importing Metadata such as trailers or subtitles (\*)
-* Adding metadata such as posters and information for Kodi and others to use (\*)
-* Dynamically renaming folders with quality info, etc. (\*)
-* Supporting custom folder structures, such as all movie files in one folder (\*)
-* Supporting multiple editions per movies (waiting on The Movie Database to finish their implementation)
-* Supporting collections of movies, such as James Bond
-
-**Note:** All features marked with (\*) are set to be in the first release of Radarr.
+See the [Roadmap blogpost](https://blog.radarr.video/development/update/2018/11/11/roadmap-update.html) for an overview of planned features.
 
 #### [Feature Requests](http://feathub.com/Radarr/Radarr)
 
@@ -100,7 +102,7 @@ Radarr is currently undergoing rapid development and pull requests are actively 
 
 ### Requirements
 
-* [Visual Studio Community](https://www.visualstudio.com/vs/community/) or [MonoDevelop](http://www.monodevelop.com)
+* [Visual Studio Community 2017](https://www.visualstudio.com/vs/community/) or [Rider](http://www.jetbrains.com/rider/)
 * [Git](https://git-scm.com/downloads)
 * [Node.js](https://nodejs.org/en/download/)
 
@@ -119,15 +121,39 @@ Radarr is currently undergoing rapid development and pull requests are actively 
 
 * To build run `sh build.sh`
 
-**Note:** Windows users must have bash available to do this. [cmder](http://cmder.net/) which is a console emulator for windows has bash as part of it's default installation.
+**Note:** Windows users must have bash available to do this. If you installed git, you should have a git bash utility that works.
 
 ### Development
 
-* Open `NzbDrone.sln` in Visual Studio or run the build.sh script, if Mono is installed
+* Open `NzbDrone.sln` in Visual Studio 2017 or run the build.sh script, if Mono is installed. Alternatively you can use Jetbrains Rider, since it works on all Platforms.
 * Make sure `NzbDrone.Console` is set as the startup project
 * Run `build.sh` before running
 
-### License
+## Supporters
+
+This project would not be possible without the support by these amazing folks. [**Become a sponsor or backer**](https://opencollective.com/radarr) to help us out!
+
+### Sponsors
+
+[![Sponsors](https://opencollective.com/radarr/tiers/sponsor.svg)](https://opencollective.com/radarr/order/3851)
+
+### Flexible Sponsors
+
+[![Flexible Sponsors](https://opencollective.com/radarr/tiers/flexible-sponsor.svg?avatarHeight=54)](https://opencollective.com/radarr/order/3856)
+
+### Backers
+
+[![Backers](https://opencollective.com/radarr/tiers/backer.svg?avatarHeight=48)](https://opencollective.com/radarr/order/3850)
+
+### JetBrains
+
+Thank you to [<img src="/Logo/jetbrains.svg" alt="JetBrains" width="32"> JetBrains](http://www.jetbrains.com/) for providing us with free licenses to their great tools
+* [<img src="/Logo/resharper.svg" alt="ReSharper" width="32"> ReSharper](http://www.jetbrains.com/resharper/)
+* [<img src="/Logo/webstorm.svg" alt="WebStorm" width="32"> WebStorm](http://www.jetbrains.com/webstorm/)
+* [<img src="/Logo/rider.svg" alt="Rider" width="32"> Rider](http://www.jetbrains.com/rider/)
+* [<img src="/Logo/dottrace.svg" alt="dotTrace" width="32"> dotTrace](http://www.jetbrains.com/dottrace/)
+
+## License
 
 * [GNU GPL v3](http://www.gnu.org/licenses/gpl.html)
-* Copyright 2010-2017
+* Copyright 2010-2018

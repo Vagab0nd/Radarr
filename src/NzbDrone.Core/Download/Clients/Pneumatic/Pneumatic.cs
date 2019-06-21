@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using FluentValidation.Results;
@@ -20,10 +20,11 @@ namespace NzbDrone.Core.Download.Clients.Pneumatic
 
         public Pneumatic(IHttpClient httpClient,
                          IConfigService configService,
+                         INamingConfigService namingConfigService,
                          IDiskProvider diskProvider,
                          IRemotePathMappingService remotePathMappingService,
                          Logger logger)
-            : base(configService, diskProvider, remotePathMappingService, logger)
+            : base(configService, namingConfigService, diskProvider, remotePathMappingService, logger)
         {
             _httpClient = httpClient;
         }
@@ -32,20 +33,16 @@ namespace NzbDrone.Core.Download.Clients.Pneumatic
 
         public override DownloadProtocol Protocol => DownloadProtocol.Usenet;
 
-        public override string Download(RemoteEpisode remoteEpisode)
-        {
-            throw new DownloadClientException("Episodes are not working with Radarr");
-        }
-
         public override string Download(RemoteMovie remoteMovie)
         {
             var url = remoteMovie.Release.DownloadUrl;
             var title = remoteMovie.Release.Title;
 
-            if (remoteMovie.ParsedEpisodeInfo.FullSeason)
-            {
-                throw new NotSupportedException("Full season releases are not supported with Pneumatic.");
-            }
+            // We don't have full seasons in movies.
+            //if (remoteMovie.ParsedEpisodeInfo.FullSeason)
+            //{
+            //    throw new NotSupportedException("Full season releases are not supported with Pneumatic.");
+            //}
 
             title = FileNameBuilder.CleanFileName(title);
 
@@ -81,6 +78,9 @@ namespace NzbDrone.Core.Download.Clients.Pneumatic
                     DownloadClient = Definition.Name,
                     DownloadId = GetDownloadClientId(file),
                     Title = title,
+
+                    CanBeRemoved = true,
+                    CanMoveFiles = true,
 
                     TotalSize = _diskProvider.GetFileSize(file),
 

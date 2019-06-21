@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using FluentValidation.Results;
@@ -11,6 +11,7 @@ using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using NzbDrone.Core.ThingiProvider;
 using NzbDrone.Core.Validation;
+using NzbDrone.Core.Organizer;
 
 namespace NzbDrone.Core.Download
 {
@@ -18,6 +19,7 @@ namespace NzbDrone.Core.Download
         where TSettings : IProviderConfig, new()
     {
         protected readonly IConfigService _configService;
+        protected readonly INamingConfigService _namingConfigService;
         protected readonly IDiskProvider _diskProvider;
         protected readonly IRemotePathMappingService _remotePathMappingService;
         protected readonly Logger _logger;
@@ -39,12 +41,14 @@ namespace NzbDrone.Core.Download
 
         protected TSettings Settings => (TSettings)Definition.Settings;
 
-        protected DownloadClientBase(IConfigService configService, 
+        protected DownloadClientBase(IConfigService configService,
+            INamingConfigService namingConfigService,
             IDiskProvider diskProvider, 
             IRemotePathMappingService remotePathMappingService,
             Logger logger)
         {
             _configService = configService;
+            _namingConfigService = namingConfigService;
             _diskProvider = diskProvider;
             _remotePathMappingService = remotePathMappingService;
             _logger = logger;
@@ -60,8 +64,7 @@ namespace NzbDrone.Core.Download
             get;
         }
 
-        
-        public abstract string Download(RemoteEpisode remoteEpisode);
+        public abstract string Download(RemoteMovie remoteMovie);
         public abstract IEnumerable<DownloadClientItem> GetItems();
         public abstract void RemoveItem(string downloadId, bool deleteData);
         public abstract DownloadClientStatus GetStatus();
@@ -151,7 +154,6 @@ namespace NzbDrone.Core.Download
 
             return null;
         }
-
-        public abstract string Download(RemoteMovie remoteMovie);
+        
     }
 }

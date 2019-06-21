@@ -56,7 +56,6 @@ module.exports = Marionette.Layout.extend({
 			this.bulkImportCollection.fullCollection.reset();
 			this.bulkImportCollection.reset();
             this.table.show(new LoadingView());
-			//debugger;
 			this.bulkImportCollection.setPageSize(pageSize);
 			//this.bulkImportCollection.fetch();
 		},
@@ -130,14 +129,14 @@ module.exports = Marionette.Layout.extend({
 				items : [
 					{
 						title        : 'Add Selected',
-						icon         : 'icon-sonarr-add',
+						icon         : 'icon-radarr-add',
 						callback     : this._addSelected,
 						ownerContext : this,
 						className    : 'x-add-selected'
 					}//,
 					// {
 					// 	title        : 'Add All',
-					// 	icon         : 'icon-sonarr-add',
+					// 	icon         : 'icon-radarr-add',
 					// 	callback     : this._addAll,
 					// 	ownerContext : this,
 					// 	className    : 'x-add-all'

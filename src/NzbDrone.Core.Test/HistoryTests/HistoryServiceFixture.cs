@@ -13,7 +13,7 @@ using NzbDrone.Core.Qualities;
 using System.Collections.Generic;
 using NzbDrone.Core.Test.Qualities;
 using FluentAssertions;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Test.HistoryTests
 {
@@ -68,8 +68,6 @@ namespace NzbDrone.Core.Test.HistoryTests
         [Test]
         public void should_use_file_name_for_source_title_if_scene_name_is_null()
         {
-            // Test fails becuase Radarr is using movie.title in historyService with no fallback
-
             var movie = Builder<Movie>.CreateNew().Build();
             var movieFile = Builder<MovieFile>.CreateNew()
                                                   .With(f => f.SceneName = null)
@@ -81,7 +79,7 @@ namespace NzbDrone.Core.Test.HistoryTests
                                    Path = @"C:\Test\Unsorted\Movie.2011.mkv"
                                };
 
-            Subject.Handle(new MovieImportedEvent(localMovie, movieFile, true, "sab", "abcd", true));
+            Subject.Handle(new MovieImportedEvent(localMovie, movieFile, true, "sab", "abcd"));
 
             Mocker.GetMock<IHistoryRepository>()
                 .Verify(v => v.Insert(It.Is<History.History>(h => h.SourceTitle == Path.GetFileNameWithoutExtension(localMovie.Path))));

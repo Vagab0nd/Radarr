@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -45,70 +45,8 @@ namespace NzbDrone.Core.Indexers
             {
                 return new List<ReleaseInfo>();
             }
-
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetRecentRequests(), true);
-        }
-
-        public override IList<ReleaseInfo> Fetch(SingleEpisodeSearchCriteria searchCriteria)
-        {
-            if (!SupportsSearch)
-            {
-                return new List<ReleaseInfo>();
-            }
-
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetSearchRequests(searchCriteria));
-        }
-
-        public override IList<ReleaseInfo> Fetch(SeasonSearchCriteria searchCriteria)
-        {
-            if (!SupportsSearch)
-            {
-                return new List<ReleaseInfo>();
-            }
-
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetSearchRequests(searchCriteria));
-        }
-
-        public override IList<ReleaseInfo> Fetch(DailyEpisodeSearchCriteria searchCriteria)
-        {
-            if (!SupportsSearch)
-            {
-                return new List<ReleaseInfo>();
-            }
-
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetSearchRequests(searchCriteria));
-        }
-
-        public override IList<ReleaseInfo> Fetch(AnimeEpisodeSearchCriteria searchCriteria)
-        {
-            if (!SupportsSearch)
-            {
-                return new List<ReleaseInfo>();
-            }
-
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetSearchRequests(searchCriteria));
-        }
-
-        public override IList<ReleaseInfo> Fetch(SpecialEpisodeSearchCriteria searchCriteria)
-        {
-            if (!SupportsSearch)
-            {
-                return new List<ReleaseInfo>();
-            }
-
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetSearchRequests(searchCriteria));
+            
+            return FetchReleases(GetRequestChain(), true);
         }
 
         public override IList<ReleaseInfo> Fetch(MovieSearchCriteria searchCriteria)
@@ -118,10 +56,37 @@ namespace NzbDrone.Core.Indexers
                 return new List<ReleaseInfo>();
             }
 
-            var generator = GetRequestGenerator();
-
-            return FetchReleases(generator.GetSearchRequests(searchCriteria));
+            return FetchReleases(GetRequestChain(searchCriteria));
         }
+
+        protected IndexerPageableRequestChain GetRequestChain(SearchCriteriaBase searchCriteria = null)
+        {
+            var generator = GetRequestGenerator();
+            
+            //A func ensures cookies are always updated to the latest. This way, the first page could update the cookies and then can be reused by the second page.
+
+            generator.GetCookies = () =>
+            {
+                var cookies = _indexerStatusService.GetIndexerCookies(Definition.Id);
+                var expiration = _indexerStatusService.GetIndexerCookiesExpirationDate(Definition.Id);
+                if (expiration < DateTime.Now)
+                {
+                    cookies = null;
+                }
+
+                return cookies;
+            };
+            
+            var requests = searchCriteria == null ? generator.GetRecentRequests() : generator.GetSearchRequests(searchCriteria as MovieSearchCriteria);
+
+            generator.CookiesUpdater = (cookies, expiration) =>
+            {
+                _indexerStatusService.UpdateCookies(Definition.Id, cookies, expiration);
+            };
+
+            return requests;
+        }
+
 
         protected virtual IList<ReleaseInfo> FetchReleases(IndexerPageableRequestChain pageableRequestChain, bool isRecent = false)
         {
@@ -129,6 +94,10 @@ namespace NzbDrone.Core.Indexers
             var url = string.Empty;
 
             var parser = GetParser();
+            parser.CookiesUpdater = (cookies, expiration) =>
+            {
+                _indexerStatusService.UpdateCookies(Definition.Id, cookies, expiration);
+            };
 
             try
             {
@@ -321,12 +290,16 @@ namespace NzbDrone.Core.Indexers
             try
             {
                 var parser = GetParser();
-                var generator = GetRequestGenerator();
-                var releases = FetchPage(generator.GetRecentRequests().GetAllTiers().First().First(), parser);
+                parser.CookiesUpdater = (cookies, expiration) =>
+                {
+                    _indexerStatusService.UpdateCookies(Definition.Id, cookies, expiration);
+                };
+                var releases = FetchPage(GetRequestChain().GetAllTiers().First().First(), parser);
 
                 if (releases.Empty())
                 {
-                    return new ValidationFailure(string.Empty, "No results were returned from your indexer, please check your settings.");
+                    return new ValidationFailure(string.Empty,
+                        "No results were returned from your indexer, please check your settings.");
                 }
             }
             catch (ApiKeyException)
@@ -347,7 +320,8 @@ namespace NzbDrone.Core.Indexers
                 }
                 else
                 {
-                    return new ValidationFailure("CaptchaToken", "Site protected by CloudFlare CAPTCHA. Valid CAPTCHA token required.");
+                    return new ValidationFailure("CaptchaToken",
+                        "Site protected by CloudFlare CAPTCHA. Valid CAPTCHA token required.");
                 }
             }
             catch (UnsupportedFeedException ex)
@@ -361,6 +335,21 @@ namespace NzbDrone.Core.Indexers
                 _logger.Warn(ex, "Unable to connect to indexer");
 
                 return new ValidationFailure(string.Empty, "Unable to connect to indexer. " + ex.Message);
+            }
+            catch (HttpException ex)
+            {
+                if (ex.Response.StatusCode == HttpStatusCode.BadRequest &&
+                    ex.Response.Content.Contains("not support the requested query"))
+                {
+                    _logger.Warn(ex, "Indexer does not support the query");
+                    return new ValidationFailure(string.Empty, "Indexer does not support the current query. Check if the categories and or searching for movies are supported. Check the log for more details.");
+                }
+                else
+                {
+                    _logger.Warn(ex, "Unable to connect to indexer");
+
+                    return new ValidationFailure(string.Empty, "Unable to connect to indexer, check the log for more details");
+                }
             }
             catch (Exception ex)
             {

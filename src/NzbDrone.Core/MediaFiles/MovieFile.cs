@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using Marr.Data;
+using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Qualities;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 using NzbDrone.Core.MediaFiles.MediaInfo;
+using NzbDrone.Common.Extensions;
 
 namespace NzbDrone.Core.MediaFiles
 {
@@ -26,5 +28,20 @@ namespace NzbDrone.Core.MediaFiles
         {
             return string.Format("[{0}] {1}", Id, RelativePath);
         }
+
+        public string GetSceneOrFileName()
+        {
+            if (SceneName.IsNotNullOrWhiteSpace())
+            {
+                return SceneName;
+            }
+
+            if (RelativePath.IsNotNullOrWhiteSpace())
+            {
+                return System.IO.Path.GetFileName(RelativePath);
+            }
+
+            return string.Empty;
+}
     }
 }

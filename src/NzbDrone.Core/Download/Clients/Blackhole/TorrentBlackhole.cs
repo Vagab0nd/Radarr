@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -28,26 +28,16 @@ namespace NzbDrone.Core.Download.Clients.Blackhole
                                 ITorrentFileInfoReader torrentFileInfoReader,
                                 IHttpClient httpClient,
                                 IConfigService configService,
+                                INamingConfigService namingConfigService,
                                 IDiskProvider diskProvider,
                                 IRemotePathMappingService remotePathMappingService,
                                 Logger logger)
-            : base(torrentFileInfoReader, httpClient, configService, diskProvider, remotePathMappingService, logger)
+            : base(torrentFileInfoReader, httpClient, configService, namingConfigService, diskProvider, remotePathMappingService, logger)
         {
             _scanWatchFolder = scanWatchFolder;
 
             ScanGracePeriod = TimeSpan.FromSeconds(30);
         }
-
-        protected override string AddFromMagnetLink(RemoteEpisode remoteEpisode, string hash, string magnetLink)
-        {
-            throw new DownloadClientException("Episodes are not working with Radarr");
-        }
-
-        protected override string AddFromTorrentFile(RemoteEpisode remoteEpisode, string hash, string filename, byte[] fileContent)
-        {
-            throw new DownloadClientException("Episodes are not working with Radarr");
-        }
-
 
         protected override string AddFromMagnetLink(RemoteMovie remoteMovie, string hash, string magnetLink)
         {
@@ -114,7 +104,8 @@ namespace NzbDrone.Core.Download.Clients.Blackhole
 
                     Status = item.Status,
 
-                    IsReadOnly = Settings.ReadOnly
+                    CanMoveFiles = !Settings.ReadOnly,
+                    CanBeRemoved = !Settings.ReadOnly
                 };
             }
         }

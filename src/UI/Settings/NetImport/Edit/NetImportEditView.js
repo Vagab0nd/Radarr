@@ -3,7 +3,7 @@ var $ = require('jquery');
 var vent = require('vent');
 var AppLayout = require('../../../AppLayout');
 var Marionette = require('marionette');
-var DeleteView = require('../Delete/IndexerDeleteView');
+var DeleteView = require('../Delete/NetImportDeleteView');
 var Profiles = require('../../../Profile/ProfileCollection');
 var AsModelBoundView = require('../../../Mixins/AsModelBoundView');
 var AsValidatedView = require('../../../Mixins/AsValidatedView');
@@ -22,6 +22,7 @@ var view = Marionette.ItemView.extend({
 				profile         : '.x-profile',
 				minimumAvailability : '.x-minimumavailability',
 				rootFolder      : '.x-root-folder',
+				tags            : '.x-tags'
 			},
 
 		events : {
@@ -44,21 +45,23 @@ var view = Marionette.ItemView.extend({
 		onRender : function() {
 				var rootFolder = this.model.get("rootFolderPath");
 				if (rootFolder !== "") {
-					//this.ui.rootFolder.val(rootFolder);
                     this.ui.rootFolder.children().filter(function() {
-                        //may want to use $.trim in here
-                        return $(this).text() === rootFolder;
-                    }).attr('selected', true);
+                        return $.trim($(this).text()) === rootFolder;
+                    }).prop('selected', true);
 				} else {
 					var defaultRoot = Config.getValue(Config.Keys.DefaultRootFolderId);
 					if (RootFolders.get(defaultRoot)) {
 							this.ui.rootFolder.val(defaultRoot);
 					}
 				}
+				this.ui.tags.tagInput({
+					model    : this.model,
+					property : 'tags'
+				});
 		},
 
 		_onBeforeSave : function() {
-			var profile = this.ui.profile.val();
+			var profile = parseInt(this.ui.profile.val(), 10);
 			var minAvail = this.ui.minimumAvailability.val();
 			var rootFolderPath = this.ui.rootFolder.children(':selected').text();
 			this.model.set({

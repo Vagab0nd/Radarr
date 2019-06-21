@@ -7,7 +7,7 @@ using NzbDrone.Common;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Configuration;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.RootFolders
 {
@@ -15,6 +15,7 @@ namespace NzbDrone.Core.RootFolders
     {
         List<RootFolder> All();
         List<RootFolder> AllWithUnmappedFolders();
+        List<RootFolder> AllWithSpace();
         RootFolder Add(RootFolder rootDir);
         void Remove(int id);
         RootFolder Get(int id);
@@ -24,7 +25,6 @@ namespace NzbDrone.Core.RootFolders
     {
         private readonly IRootFolderRepository _rootFolderRepository;
         private readonly IDiskProvider _diskProvider;
-        private readonly ISeriesRepository _seriesRepository;
         private readonly IMovieRepository _movieRepository;
         private readonly IConfigService _configService;
         private readonly Logger _logger;
@@ -45,14 +45,12 @@ namespace NzbDrone.Core.RootFolders
 
         public RootFolderService(IRootFolderRepository rootFolderRepository,
                                  IDiskProvider diskProvider,
-                                 ISeriesRepository seriesRepository,
                                  IMovieRepository movieRepository,
                                  IConfigService configService,
                                  Logger logger)
         {
             _rootFolderRepository = rootFolderRepository;
             _diskProvider = diskProvider;
-            _seriesRepository = seriesRepository;
             _movieRepository = movieRepository;
             _configService = configService;
             _logger = logger;
@@ -61,6 +59,31 @@ namespace NzbDrone.Core.RootFolders
         public List<RootFolder> All()
         {
             var rootFolders = _rootFolderRepository.All().ToList();
+
+            return rootFolders;
+        }
+
+        public List<RootFolder> AllWithSpace()
+        {
+            var rootFolders = _rootFolderRepository.All().ToList();
+
+            rootFolders.ForEach(folder =>
+            {
+                try
+                {
+                    if (folder.Path.IsPathValid() && _diskProvider.FolderExists(folder.Path))
+                    {
+                        folder.FreeSpace = _diskProvider.GetAvailableSpace(folder.Path);
+                        folder.TotalSpace = _diskProvider.GetTotalSize(folder.Path);
+                    }
+                }
+                //We don't want an exception to prevent the root folders from loading in the UI, so they can still be deleted
+                catch (Exception ex)
+                {
+                    folder.FreeSpace = 0;
+                    _logger.Error(ex, "Unable to get free space for root folder {0}", folder.Path);
+                }
+            });
 
             return rootFolders;
         }
@@ -132,41 +155,6 @@ namespace NzbDrone.Core.RootFolders
         {
             _rootFolderRepository.Delete(id);
         }
-
-        //private List<UnmappedFolder> GetUnmappedFolders(string path)
-        //{
-        //    _logger.Debug("Generating list of unmapped folders");
-        //    if (string.IsNullOrEmpty(path))
-        //        throw new ArgumentException("Invalid path provided", "path");
-
-        //    var results = new List<UnmappedFolder>();
-        //    var series = _seriesRepository.All().ToList();
-
-        //    if (!_diskProvider.FolderExists(path))
-        //    {
-        //        _logger.Debug("Path supplied does not exist: {0}", path);
-        //        return results;
-        //    }
-
-        //    var seriesFolders = _diskProvider.GetDirectories(path).ToList();
-        //    var unmappedFolders = seriesFolders.Except(series.Select(s => s.Path), PathEqualityComparer.Instance).ToList();
-
-        //    foreach (string unmappedFolder in unmappedFolders)
-        //    {
-        //        var di = new DirectoryInfo(unmappedFolder.Normalize());
-        //        if (!di.Attributes.HasFlag(FileAttributes.System) && !di.Attributes.HasFlag(FileAttributes.Hidden))
-        //        {
-        //            results.Add(new UnmappedFolder { Name = di.Name, Path = di.FullName });
-        //        }
-
-        //    }
-
-        //    var setToRemove = SpecialFolders;
-        //    results.RemoveAll(x => setToRemove.Contains(new DirectoryInfo(x.Path.ToLowerInvariant()).Name));
-
-        //    _logger.Debug("{0} unmapped folders detected.", results.Count);
-        //    return results;
-        //}
 
         private List<UnmappedFolder> GetUnmappedFolders(string path)
         {

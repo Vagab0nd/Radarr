@@ -10,7 +10,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Extras.Files;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Parser;
-using NzbDrone.Core.Tv;
+using NzbDrone.Core.Movies;
 
 namespace NzbDrone.Core.Extras.Subtitles
 {
@@ -38,6 +38,11 @@ namespace NzbDrone.Core.Extras.Subtitles
         }
 
         public override IEnumerable<ExtraFile> CreateAfterMovieImport(Movie movie, MovieFile movieFile)
+        {
+            return Enumerable.Empty<SubtitleFile>();
+        }
+
+        public override IEnumerable<ExtraFile> CreateAfterMovieImport(Movie movie, string movieFolder)
         {
             return Enumerable.Empty<SubtitleFile>();
         }

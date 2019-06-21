@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Configuration.Events;
-using NzbDrone.Core.DataAugmentation.Scene;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.HealthCheck;
 using NzbDrone.Core.Housekeeping;
@@ -15,7 +14,7 @@ using NzbDrone.Core.MediaFiles.Commands;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.NetImport;
-using NzbDrone.Core.Tv.Commands;
+using NzbDrone.Core.Movies.Commands;
 using NzbDrone.Core.Update.Commands;
 using NzbDrone.Core.MetadataSource.PreDB;
 
@@ -72,7 +71,6 @@ namespace NzbDrone.Core.Jobs
 
             var defaultTasks = new[]
                 {
-                    new ScheduledTask{ Interval = 0.25f, TypeName = typeof(CheckForFinishedDownloadCommand).FullName},
                     new ScheduledTask{ Interval = 1*60, TypeName = typeof(PreDBSyncCommand).FullName},
                     new ScheduledTask{ Interval = 5, TypeName = typeof(MessagingCleanupCommand).FullName},
                     new ScheduledTask{ Interval = updateInterval, TypeName = typeof(ApplicationUpdateCommand).FullName},
@@ -97,8 +95,13 @@ namespace NzbDrone.Core.Jobs
                     new ScheduledTask
                     { 
                         Interval = _configService.DownloadedMoviesScanInterval,
-                        //TypeName = typeof(DownloadedEpisodesScanCommand).FullName
                         TypeName = typeof(DownloadedMoviesScanCommand).FullName
+                    },
+
+                    new ScheduledTask
+                    {
+                        Interval = Math.Max(_configService.CheckForFinishedDownloadInterval, 1),
+                        TypeName = typeof(CheckForFinishedDownloadCommand).FullName
                     },
                 };
 
@@ -186,7 +189,10 @@ namespace NzbDrone.Core.Jobs
             var netImport = _scheduledTaskRepository.GetDefinition(typeof(NetImportSyncCommand));
             netImport.Interval = _configService.NetImportSyncInterval;
 
-            _scheduledTaskRepository.UpdateMany(new List<ScheduledTask> { rss, downloadedMovies, netImport });
+            var checkForFinishedDownloads = _scheduledTaskRepository.GetDefinition(typeof(CheckForFinishedDownloadCommand));
+            checkForFinishedDownloads.Interval = _configService.CheckForFinishedDownloadInterval;
+
+            _scheduledTaskRepository.UpdateMany(new List<ScheduledTask> { rss, downloadedMovies, netImport, checkForFinishedDownloads });
         }
     }
 }

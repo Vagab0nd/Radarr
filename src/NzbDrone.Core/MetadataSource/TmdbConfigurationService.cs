@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,7 +21,7 @@ namespace NzbDrone.Core.MetadataSource
         private readonly IHttpClient _httpClient;
         private readonly IHttpRequestBuilderFactory _tmdbBuilder;
 
-        public TmdbConfigService(ICacheManager cacheManager, IHttpClient httpClient, ISonarrCloudRequestBuilder requestBuilder)
+        public TmdbConfigService(ICacheManager cacheManager, IHttpClient httpClient, IRadarrCloudRequestBuilder requestBuilder)
         {
             _configurationCache = cacheManager.GetCache<ConfigResource>(GetType(), "configuration_cache");
             _httpClient = httpClient;
@@ -44,7 +44,7 @@ namespace NzbDrone.Core.MetadataSource
 
             switch (type)
             {
-                case MediaCoverTypes.Banner:
+                case MediaCoverTypes.Fanart:
                     realUrl += images.backdrop_sizes.Last();
                     break;
                 case MediaCoverTypes.Poster:

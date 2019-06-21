@@ -1,10 +1,12 @@
 var $ = require('jquery');
 var vent = require('vent');
 var Marionette = require('marionette');
+var AppLayout = require('../AppLayout');
 var moment = require('moment');
 var CalendarCollection = require('./CalendarCollection');
 var UiSettings = require('../Shared/UiSettingsModel');
 var QueueCollection = require('../Activity/Queue/QueueCollection');
+var MoviesDetailsLayout = require('../Movies/Details/MoviesDetailsLayout');
 var Config = require('../Config');
 
 require('../Mixins/backbone.signalr.mixin');
@@ -57,23 +59,23 @@ module.exports = Marionette.ItemView.extend({
 						var errorMessage = event.downloading.get('errorMessage');
 
 						if (status === 'pending') {
-								this._addStatusIcon(element, 'icon-sonarr-pending', 'Release will be processed {0}'.format(estimatedCompletionTime));
+								this._addStatusIcon(element, 'icon-radarr-pending', 'Release will be processed {0}'.format(estimatedCompletionTime));
 						}
 
 						else if (errorMessage) {
 								if (status === 'completed') {
-										this._addStatusIcon(element, 'icon-sonarr-import-failed', 'Import failed: {0}'.format(errorMessage));
+										this._addStatusIcon(element, 'icon-radarr-import-failed', 'Import failed: {0}'.format(errorMessage));
 								} else {
-										this._addStatusIcon(element, 'icon-sonarr-download-failed', 'Download failed: {0}'.format(errorMessage));
+										this._addStatusIcon(element, 'icon-radarr-download-failed', 'Download failed: {0}'.format(errorMessage));
 								}
 						}
 
 						else if (status === 'failed') {
-								this._addStatusIcon(element, 'icon-sonarr-download-failed', 'Download failed: check download client for more details');
+								this._addStatusIcon(element, 'icon-radarr-download-failed', 'Download failed: check download client for more details');
 						}
 
 						else if (status === 'warning') {
-								this._addStatusIcon(element, 'icon-sonarr-download-warning', 'Download warning: check download client for more details');
+								this._addStatusIcon(element, 'icon-radarr-download-warning', 'Download warning: check download client for more details');
 						}
 
 						else {
@@ -89,14 +91,14 @@ module.exports = Marionette.ItemView.extend({
 								});
 
 								element.find('.chart').tooltip({
-										title     : 'Episode is downloading - {0}% {1}'.format(progress.toFixed(1), releaseTitle),
+										title     : 'Movie is downloading - {0}% {1}'.format(progress.toFixed(1), releaseTitle),
 										container : '.fc'
 								});
 						}
 				}
 
 				else if (event.model.get('unverifiedSceneNumbering')) {
-						this._addStatusIcon(element, 'icon-sonarr-form-warning', 'Scene number hasn\'t been verified yet.');
+						this._addStatusIcon(element, 'icon-radarr-form-warning', 'Scene number hasn\'t been verified yet.');
 				}
 		},
 
@@ -144,7 +146,7 @@ module.exports = Marionette.ItemView.extend({
 				var self = this;
 
 				collection.each(function(model) {
-						var seriesTitle = model.get('title');
+						var movieTitle = model.get('title');
 						var start = model.get('inCinemas');
 						var startDate = new Date(start);
 						if (!(startD <= startDate && startDate <= endD)) {
@@ -154,14 +156,15 @@ module.exports = Marionette.ItemView.extend({
 						var end = moment(start).add(runtime, 'minutes').toISOString();
 
 						var event = {
-								title       : seriesTitle,
+								title       : movieTitle,
 								start       : moment(start),
 								end         : moment(end),
 								allDay      : true,
 								statusLevel : self._getStatusLevel(model, end),
 								downloading : QueueCollection.findMovie(model.get('id')),
 								model       : model,
-								sortOrder   : 0
+								sortOrder   : 0,
+								url			: "movies/" + model.get("titleSlug")
 						};
 
 						events.push(event);
@@ -229,11 +232,7 @@ module.exports = Marionette.ItemView.extend({
 						viewRender          : this._viewRender.bind(this),
 						eventRender         : this._eventRender.bind(this),
 						eventAfterAllRender : this._eventAfterAllRender.bind(this),
-						windowResize        : this._windowResize.bind(this),
-						eventClick          : function(event) {
-								//vent.trigger(vent.Commands.ShowMovieDetails, { movie : event.model });
-								window.location.href = "movies/"+event.model.get("titleSlug");
-						}
+						windowResize        : this._windowResize.bind(this)
 				};
 
 				if ($(window).width() < 768) {
@@ -256,13 +255,16 @@ module.exports = Marionette.ItemView.extend({
 						};
 				}
 
-				options.titleFormat = "L";
-
-				options.columnFormat = "L"; /*{
-						month : 'ddd',
-						week  : UiSettings.get('calendarWeekColumnHeader'),
-						day   : 'dddd'
-				};*///For now ignore settings. TODO update that.
+				options.views = {
+					month: {
+						titleFormat: 'MMMM YYYY',
+						columnFormat: 'ddd'
+					},
+					list: {
+						titleFormat: 'L',
+						columnFormat: 'L'
+					}
+				},
 
 				options.timeFormat = UiSettings.get('timeFormat');
 
