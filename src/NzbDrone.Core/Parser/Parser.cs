@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -39,6 +39,9 @@ namespace NzbDrone.Core.Parser
 
 			//As a last resort for movies that have ( or [ in their title.
 			new Regex(@"^(?<title>.+?)?(?:(?:[-_\W](?<![)\[!]))*(?<year>(19|20)\d{2}(?!p|i|\d+|\]|\W\d+)))+(\W+|_|$)(?!\\)", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+
+            //Anime with release groups: [PAR] I Want to Eat Your Pancreas (Kimi no Suizou wo Tabetai) [BD AAC] [B9EAC7FF]
+            new Regex(@"^(?:\[(?<subgroup>.+?)\](?:_|-|\s|\.)?)?(?<title>.+?)(?:\W?\[.*?)(?<hash>\[\w{8}\])?(?:$|\.)", RegexOptions.IgnoreCase | RegexOptions.Compiled)
 
         };
 

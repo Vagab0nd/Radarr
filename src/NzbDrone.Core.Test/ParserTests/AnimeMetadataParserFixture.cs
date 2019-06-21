@@ -30,5 +30,19 @@ namespace NzbDrone.Core.Test.ParserTests
             result.ReleaseGroup.Should().Be(subGroup);
             result.ReleaseHash.Should().Be(hash);
         }
+
+        [TestCase("[PAR] I Want to Eat Your Pancreas (Kimi no Suizou wo Tabetai) [BD 720p AAC] [B9EAC7FF].mkv", "I Want to Eat Your Pancreas (Kimi no Suizou wo Tabetai)", "PAR", "B9EAC7FF")]
+        [TestCase("[UTW - THORA] Evangelion 2.22 - You Can(Not) Advance[BD][1080p, x264, DTS - ES]", "Evangelion 2 22 - You Can(Not) Advance", "UTW - THORA", "")]
+        [TestCase("Berserk_Golden_Age_Arc_I_Egg_of_the_Supreme_Ruler_(2012)_[720p,BluRay,flac,x264]_-_Taka-THORA", "Berserk Golden Age Arc I Egg of the Supreme Ruler", "THORA", "")]
+        [TestCase("I Want to Eat Your Pancreas (Kimi no Suizo wo Tabetai) (2018) [BD 720p Hi10P 5.1 AAC][kuchikirukia].mkv", "I Want to Eat Your Pancreas (Kimi no Suizo wo Tabetai)", null, "")]
+        [TestCase("I Want to Eat Your Pancreas [H.264] [720p] [MP4]", "I Want to Eat Your Pancreas", null, "")]
+        public void should_parse_movie_title_with_release_group(string postTitle, string title, string subGroup, string hash)
+        {
+            var result = Parser.Parser.ParseMovieTitle(postTitle, true);
+            result.Should().NotBeNull();
+            result.ReleaseGroup.Should().Be(subGroup);
+            result.ReleaseHash.Should().Be(hash);
+            result.MovieTitle.Should().Be(title);
+        }
     }
 }
