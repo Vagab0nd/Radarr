@@ -14,7 +14,7 @@ namespace NzbDrone.Common.Cloud
     {
         public SonarrCloudRequestBuilder()
         {
-            Services = new HttpRequestBuilder("http://radarr.aeonlucid.com/v1/")
+            Services = new HttpRequestBuilder("https://radarrapi20190621124635.azurewebsites.net/v1/")
                 .CreateFactory();
 
             SkyHookTvdb = new HttpRequestBuilder("http://skyhook.sonarr.tv/v1/tvdb/{route}/{language}/")
