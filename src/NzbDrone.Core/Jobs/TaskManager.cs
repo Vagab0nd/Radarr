@@ -17,6 +17,7 @@ using NzbDrone.Core.NetImport;
 using NzbDrone.Core.Movies.Commands;
 using NzbDrone.Core.Update.Commands;
 using NzbDrone.Core.MetadataSource.PreDB;
+using NzbDrone.Core.IndexerSearch;
 
 namespace NzbDrone.Core.Jobs
 {
@@ -103,6 +104,12 @@ namespace NzbDrone.Core.Jobs
                         Interval = Math.Max(_configService.CheckForFinishedDownloadInterval, 1),
                         TypeName = typeof(CheckForFinishedDownloadCommand).FullName
                     },
+
+                    new ScheduledTask
+                    {
+                        Interval = 24*60,
+                        TypeName = typeof(MissingMoviesSearchCommand).FullName
+                    }
                 };
 
             var currentTasks = _scheduledTaskRepository.All().ToList();
